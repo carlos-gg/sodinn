@@ -8,8 +8,6 @@ import cupy
 import torch
 import numpy as np
 from vip_hci.preproc import cube_derotate, cube_crop_frames, cube_derotate
-from vip_hci.conf.utils_conf import (pool_map, make_chunks, fixed,
-                                     eval_func_tuple as futup)
 from vip_hci.var import (get_annulus_segments, reshape_matrix, prepare_matrix,
                          frame_center, cube_filter_highpass)
 from vip_hci.pca import pca, svd_wrapper, randomized_svd_gpu
