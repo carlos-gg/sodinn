@@ -1,13 +1,10 @@
 """
-Discriminative models: convLSTM2d, conv3d, RF.
+Discriminative models
 """
 from __future__ import print_function
 from __future__ import absolute_import
 
-__all__ = ['Model',
-           'train_2dconvnet',
-           'train_3dnet',
-           'train_random_forest']
+__all__ = ['Model']
 
 import tables
 import numpy as np
@@ -967,58 +964,3 @@ def train_2dconvnet(X, Y, test_size=0.1, validation_split=0.1, random_state=0,
         return M, hist.history, score, fintime
     else:
         return M
-
-
-def train_random_forest(X, Y, test_size=0.1, n_estimators=100, criterion='gini',
-                        max_depth=None, min_samples_split=2,
-                        min_samples_leaf=1, min_weight_fracleaf=0.0,
-                        max_features='auto', max_leaf_nodes=None,
-                        min_impurity_split=1e-07, bootstrap=True,
-                        oob_score=True, n_jobs=50, random_state=None,
-                        verbose=0, class_weight=None):
-    """
-    oob_score : bool (default=True)
-        Whether to use out-of-bag samples to estimate the generalization
-        accuracy.
-
-    warm_start=False
-
-    http://scikit-learn.org/stable/auto_examples/model_selection/plot_confusion_matrix.html
-    """
-    starttime = time_ini()
-
-    # Vectorizing the MLAR samples
-    n_samples = X.shape[0]
-    Xbig_flat = X.reshape(n_samples, -1)
-
-    # Mixed train/test sets with Sklearn split
-    resplit = train_test_split(Xbig_flat, Y, test_size=test_size,
-                               random_state=random_state)
-    X_train, X_test, y_train, y_test = resplit
-
-    # Instantiating the random forest classfier
-    rf = RandomForestClassifier(n_estimators=n_estimators, criterion=criterion,
-                                max_depth=max_depth,
-                                min_samples_split=min_samples_split,
-                                min_samples_leaf=min_samples_leaf,
-                                min_weight_fraction_leaf=min_weight_fracleaf,
-                                max_features=max_features,
-                                max_leaf_nodes=max_leaf_nodes,
-                                min_impurity_split=min_impurity_split,
-                                bootstrap=bootstrap, oob_score=oob_score,
-                                n_jobs=n_jobs, random_state=random_state,
-                                verbose=verbose, class_weight=class_weight)
-
-    rf.fit(X_train, y_train)
-    y_pred = rf.predict(X_test)
-    # Score of the training dataset obtained using an out-of-bag estimate.
-    if oob_score:
-        print("Out-of-bag score: {}".format(rf.oob_score_))
-    print("Accuracy on test set: {}".format(accuracy_score(y_test, y_pred)))
-    print("Confusion matrix (true X pred)")
-    print(confusion_matrix(y_test, y_pred))
-
-    timing(starttime)
-    fintime = time_fin(starttime)
-
-    return rf
