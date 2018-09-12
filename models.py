@@ -10,7 +10,6 @@ __all__ = ['Model',
            'train_random_forest']
 
 import tables
-import warnings
 import numpy as np
 import tensorflow as tf
 import livelossplot
@@ -51,9 +50,7 @@ from vip_hci.conf import time_ini, timing, time_fin
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.model_selection import train_test_split
 from sklearn.metrics import confusion_matrix, accuracy_score
-# from sklearn.metrics import classification_report
 from .data_labeling.labeling import DataLabeler
-
 
 
 class Model:

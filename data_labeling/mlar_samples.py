@@ -14,9 +14,7 @@ from vip_hci.pca import pca, svd_wrapper, randomized_svd_gpu
 from vip_hci.conf.utils_conf import (pool_map, fixed, make_chunks)
 from multiprocessing import Pool, cpu_count
 from multiprocessing import get_start_method
-import itertools as itt
 from ..utils import (normalize_01, create_synt_cube)
-# from sklearn.exceptions import DataConversionWarning
 import warnings
 warnings.filterwarnings(action='ignore', category=UserWarning)
 
