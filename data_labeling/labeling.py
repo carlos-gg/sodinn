@@ -44,7 +44,8 @@ class DataLabeler:
                  high_pass='laplacian', kernel_size=5, normalization='slice',
                  min_adi_snr=1, max_adi_snr=3, cevr_thresh=0.99, n_ks=20,
                  lr_mode='eigen', imlib='opencv', interpolation='bilinear',
-                 n_proc=1, random_seed=42, save=None, reload=False):
+                 n_proc=1, random_seed=42, identifier=1, dir_path=None,
+                 reload=False):
         """
 
         cube : 3d ndarray or tuple of 3d ndarrays
@@ -110,7 +111,6 @@ class DataLabeler:
             raise ValueError()
         self.n_cubes = len(self.cube)
         for i in range(self.n_cubes):
-            # self.cube[i] += np.abs(self.cube[i].min())
             self.cube[i] = self.cube[i].astype('float32')
 
         if sample_type not in ('mlar', 'tmlar', 'pw2d', 'pw3d'):
@@ -158,7 +158,6 @@ class DataLabeler:
                 tempcu = cube_filter_highpass(self.cube[i], self.high_pass,
                                               kernel_size=self.kernel_size,
                                               verbose=False)
-                # tempcu += np.abs(tempcu.min())
                 tempcu = tempcu.astype('float32')
                 cubehp.append(tempcu)
             self.cubehp = cubehp
@@ -178,7 +177,15 @@ class DataLabeler:
         self.nsamp_sep = None
         self.min_n_slices = -1
         self.n_proc = int(n_proc)
-        self.save_filename_labdata = save
+
+        # save_filename_labdata: eg. dir_path/labda_mlar_v1
+        self.labda_identifier = 'v' + str(identifier)
+        if dir_path is not None:
+            self.save_filename_labdata = dir_path + 'labda_' + sample_type \
+                                         + '_' + self.labda_identifier
+        else:
+            self.save_filename_labdata = None
+
         if radius_int is None:
             self.radius_int = int(round(2 * fwhm))
         else:

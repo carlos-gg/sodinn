@@ -44,9 +44,7 @@ from tensorflow.keras.layers import ConvLSTM2D
 # from keras.regularizers import l2, l1, l1_l2
 # from keras.layers.advanced_activations import PReLU
 from vip_hci.conf import time_ini, timing, time_fin
-from sklearn.ensemble import RandomForestClassifier
 from sklearn.model_selection import train_test_split
-from sklearn.metrics import confusion_matrix, accuracy_score
 from .data_labeling.labeling import DataLabeler
 
 
@@ -61,7 +59,7 @@ class Model:
                  pool_func='ave', pool_sizes=((2, 2, 2), (2, 2, 2)),
                  pool_strides=((2, 2, 2), (2, 2, 2)),
                  rec_hidden_states=128, dense_units=128, activation='relu',
-                 conv2d_pseudo3d=False, save=None):
+                 conv2d_pseudo3d=False, identifier=1, dir_path=None):
         """
         """
         if not hasattr(labeled_data, 'x_minus'):
@@ -101,8 +99,21 @@ class Model:
         self.n_aug_rotshi = labeled_data.n_aug_rotshi
         self.n_aug_mupcu = labeled_data.n_aug_mupcu
         self.save_filename_labdata = labeled_data.save_filename_labdata
+        self.labda_identifier = labeled_data.labda_identifier
 
-        self.save_filename_model = save
+        # save_filename_model: eg. dir_path/model_mlar_v1_clstm_v1
+        self.model_identifier = 'v' + str(identifier)
+        type_layer1st = layer_type[0]
+        if type_layer1st == 'conv2d' and self.sample_dim == 3:
+            type_layer1st = 'ps3d'
+        self.labda_name = self.sample_type + '_' + self.labda_identifier
+        self.model_name = type_layer1st + '_' + self.model_identifier
+        if dir_path is not None:
+            self.save_filename_model = dir_path + 'model_' + self.labda_name \
+                                       + '_' + self.model_name
+        else:
+            self.save_filename_model = None
+
         self.conv2d_pseudo3d = conv2d_pseudo3d
         if self.sample_dim == 2 and self.conv2d_pseudo3d:
             raise ValueError('Conv2d_pseudo3d only works with 3d samples')
@@ -231,8 +242,6 @@ class Model:
         fh5 = tables.open_file(filename, mode='r')
         filen_labdata = fh5.root.save_filename_labdata[0].decode() + '.hdf5'
         labeled_data = DataLabeler.load(filen_labdata)
-        # model = models.load_model(fh5.root.save_filename_model[0].decode() +
-        #                           '.h5')
         with tf.device('/cpu:0'):
             model = models.load_model(fh5.root.save_filename_model[0].decode() +
                                       '.h5')
@@ -272,7 +281,7 @@ class Model:
     def train(self, test_split=0.1, validation_split=0.1, random_state=0,
               learning_rate=0.003, batch_size=64, epochs=20, patience=2,
               min_delta=0.001, retrain=False, verbose=1, summary=True,
-              gpu_id='0', plot='tb', tblog_path='./logs'):
+              gpu_id='0', plot='tb', tblog_path='./logs/', tblog_name=None):
         """
 
         Parameters
@@ -300,6 +309,11 @@ class Model:
         x = np.concatenate((self.x_plus, self.x_minus), axis=0)
         y = np.concatenate((self.y_plus, self.y_minus), axis=0)
 
+        if tblog_name is None:
+            tblog_name = ''
+        tblog_fullpath = tblog_path + self.labda_name + '_' + self.model_name \
+                         + '_' + tblog_name
+
         if self.sample_dim == 2:
             nn = train_2dconvnet
             res = nn(x, y, test_size=self.test_split,
@@ -316,7 +330,7 @@ class Model:
                      epochs=self.epochs, patience=self.patience,
                      gpu_id=self.gpu_id, min_delta=self.min_delta,
                      retrain=retrain, verb=verbose, summary=summary,
-                     full_output=True, plot=plot, tb_path=tblog_path)
+                     full_output=True, plot=plot, tb_path=tblog_fullpath)
 
         elif self.sample_dim == 3 and self.conv2d_pseudo3d:
             nn = train_2dconvnet
@@ -334,7 +348,7 @@ class Model:
                      epochs=self.epochs, patience=self.patience,
                      gpu_id=self.gpu_id, min_delta=self.min_delta,
                      retrain=retrain, verb=verbose, summary=summary,
-                     full_output=True, plot=plot, tb_path=tblog_path)
+                     full_output=True, plot=plot, tb_path=tblog_fullpath)
 
         elif self.sample_dim == 3 and not self.conv2d_pseudo3d:
             nn = train_3dnet
@@ -355,7 +369,7 @@ class Model:
                      batchsize=self.batch_size, epochs=self.epochs,
                      patience=self.patience, gpu_id=self.gpu_id,
                      min_delta=self.min_delta, retrain=retrain, verb=verbose,
-                     summary=summary, plot=plot, tb_path=tblog_path,
+                     summary=summary, plot=plot, tb_path=tblog_fullpath,
                      full_output=True)
 
         self.model, self.history, self.score, self.runtime = res

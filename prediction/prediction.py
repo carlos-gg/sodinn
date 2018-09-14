@@ -18,7 +18,7 @@ class Predictor:
     """
     """
     def __init__(self, labeled_data, model, radius_int=None, radius_out=None,
-                 save=None):
+                 identifier=1, dir_path=None):
         """
         """
         if not hasattr(labeled_data, 'x_minus'):
@@ -95,9 +95,25 @@ class Predictor:
         self.n_init_samples = deepcopy(labeled_data.n_init_samples)
         self.n_total_samples = deepcopy(labeled_data.n_total_samples)
         self.runtime_labda = deepcopy(labeled_data.runtime)
+        self.labda_identifier = deepcopy(labeled_data.labda_identifier)
         del labeled_data
 
-        self.save_filename_prediction = save
+        # save_filename_prediction: eg. dir_path/pred_v1_mlar_v1_clstm_v1
+        self.pred_identifier = 'v' + str(identifier)
+        self.model_identifier = deepcopy(model.model_identifier)
+        type_layer1st = self.layer_type[0]
+        if type_layer1st == 'conv2d' and self.sample_dim == 3:
+            type_layer1st = 'ps3d'
+        self.model_name = type_layer1st + '_' + self.model_identifier
+        self.labda_name = self.sample_type + '_' + self.labda_identifier
+        if dir_path is not None:
+            self.save_filename_prediction = dir_path + 'pred_' \
+                                            + self.pred_identifier + '_' \
+                                            + self.labda_name + '_' \
+                                            + self.model_name
+        else:
+            self.save_filename_prediction = None
+
         self.pmap = None
         self.cube_index = None
         self.patches = None
