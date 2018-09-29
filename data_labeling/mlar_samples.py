@@ -237,11 +237,12 @@ def make_mlar_samples_ann_noise(input_array, angle_list, cevr_thresh, n_ks,
                                                   patch_size,
                                                   xy=xy, verbose=False))
 
-        # 4D: n_samples/2, n_k_list, patch_size, patch_size
-        X_zeros_array = np.asarray(patches_array)
-        if normalize is not None:
-            X_zeros_array = normalize_01(X_zeros_array, normalize)
-        return X_zeros_array, np.vstack(all_k_list)
+    # For MLAR and TMLAR
+    # 4D: n_patches_annulus, n_k_list, patch_size, patch_size
+    X_zeros_array = np.asarray(patches_array)
+    if normalize is not None:
+        X_zeros_array = normalize_01(X_zeros_array, normalize)
+    return X_zeros_array, np.vstack(all_k_list)
 
 
 def _inject_FC(cube, psf, angle_list, plsc, inrad, outrad, flux_dist_theta,
@@ -314,10 +315,14 @@ def svd_decomp(array, angle_list, size_patch, inrad, outrad, sca, k_list,
             cube_residuals.append(collapse_func(residual_frames_rot, axis=0))
         elif mode == 'tmlar':
             cube_residuals.append(residual_frames_rot)
+        elif mode == 'tmlar4d':
+            cube_residuals.append(residual_frames_rot)
 
+    cube_residuals = np.array(cube_residuals)
     if mode == 'tmlar':
-        cube_residuals = np.array(cube_residuals)
         cube_residuals = np.mean(cube_residuals, axis=0)
+    elif mode == 'tmlar4d':
+        cube_residuals = np.moveaxis(cube_residuals, 1, 0)
 
     return cube_residuals
 
