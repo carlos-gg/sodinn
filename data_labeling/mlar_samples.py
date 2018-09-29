@@ -43,116 +43,123 @@ def make_mlar_samples_ann_signal(input_array, angle_list, psf, n_samples,
     if not isinstance(input_array, list):
         input_array = [input_array]
 
-    list_X_ones = []
     random_state = np.random.RandomState(random_seed)
 
-    for ncu, cube in enumerate(input_array):
+    # making ones, injecting companions. The other half of n_samples
+    if verbose:
+        print("Creating the ONEs samples")
 
-        # making ones, injecting companions. The other half of n_samples
-        if verbose:
-            print("Creating the ONEs samples")
+    frsize = int(input_array.shape[1])
+    if frsize > outrad + outrad + patch_size + 2:
+        frsize = int(outrad + outrad + patch_size + 2)
+        cube = cube_crop_frames(input_array, frsize, force=True, verbose=False)
 
-        frsize = int(cube.shape[1])
-        if frsize > outrad + outrad + patch_size + 2:
-            frsize = int(outrad + outrad + patch_size + 2)
-            cube = cube_crop_frames(cube, frsize, force=True, verbose=False)
+    width = outrad - inrad
+    yy, xx = get_annulus_segments((frsize, frsize), inrad, width, 1)[0]
+    num_patches = yy.shape[0]
 
-        width = outrad - inrad
-        yy, xx = get_annulus_segments((frsize, frsize), inrad, width, 1)[0]
-        num_patches = yy.shape[0]
+    k_list = get_cumexpvar(cube, 'annular', inrad, outrad, patch_size,
+                           k_list=None, cevr_thresh=cevr_thresh, n_ks=n_ks,
+                           match_len=force_klen, verbose=False)
 
-        k_list = get_cumexpvar(cube, 'annular', inrad, outrad, patch_size,
-                               k_list=None, cevr_thresh=cevr_thresh, n_ks=n_ks,
-                               match_len=force_klen, verbose=False)
+    n_req_inject = n_samples
+    if mode == 'mlar':
+        # 4D: n_samples/2, n_k_list, patch_size, patch_size
+        X_ones_array = np.empty((n_req_inject, len(k_list), patch_size,
+                                patch_size))
+    elif mode == 'tmlar':
+        nfr = cube.shape[0]
+        X_ones_array = np.empty((n_req_inject, nfr, patch_size, patch_size))
 
-        n_req_inject = n_samples
-        if mode == 'mlar':
-            # 4D: n_samples/2, n_k_list, patch_size, patch_size
-            X_ones_array = np.empty((n_req_inject, len(k_list), patch_size,
-                                    patch_size))
-        elif mode == 'tmlar':
-            nfr = cube.shape[0]
-            X_ones_array = np.empty((n_req_inject, nfr, patch_size, patch_size))
+    elif mode == 'tmlar4d':
+        nfr = cube.shape[0]
+        X_ones_array = np.empty((n_req_inject, nfr, len(k_list), patch_size,
+                                 patch_size))
 
-        if verbose:
-            print("{} injections".format(n_req_inject))
+    if verbose:
+        print("{} injections".format(n_req_inject))
 
-        if not dist_flux_p2 > dist_flux_p1:
-            err_msg = 'dist_flux_p2 must be larger than dist_flux_p1'
-            raise ValueError(err_msg)
-        fluxes = random_state.uniform(dist_flux_p1, dist_flux_p2,
-                                      size=n_req_inject)
-        fluxes = np.sort(fluxes)
-        inds_inj = random_state.randint(0, num_patches, size=n_req_inject)
+    if not dist_flux_p2 > dist_flux_p1:
+        err_msg = 'dist_flux_p2 must be larger than dist_flux_p1'
+        raise ValueError(err_msg)
+    fluxes = random_state.uniform(dist_flux_p1, dist_flux_p2,
+                                  size=n_req_inject)
+    fluxes = np.sort(fluxes)
+    inds_inj = random_state.randint(0, num_patches, size=n_req_inject)
 
-        dists = []
-        thetas = []
+    dists = []
+    thetas = []
+    for m in range(n_req_inject):
+        injx = xx[inds_inj[m]]
+        injy = yy[inds_inj[m]]
+        injx -= frame_center(cube[0])[1]
+        injy -= frame_center(cube[0])[0]
+        dist = np.sqrt(injx**2+injy**2)
+        theta = np.mod(np.arctan2(injy, injx) / np.pi * 180, 360)
+        dists.append(dist)
+        thetas.append(theta)
+
+    if not nproc:
+        nproc = int((cpu_count()/4))
+
+    if nproc == 1:
         for m in range(n_req_inject):
-            injx = xx[inds_inj[m]]
-            injy = yy[inds_inj[m]]
-            injx -= frame_center(cube[0])[1]
-            injy -= frame_center(cube[0])[0]
-            dist = np.sqrt(injx**2+injy**2)
-            theta = np.mod(np.arctan2(injy, injx) / np.pi * 180, 360)
-            dists.append(dist)
-            thetas.append(theta)
+            cufc, cox, coy = create_synt_cube(cube, psf, angle_list,
+                                              plsc, theta=thetas[m],
+                                              flux=fluxes[m], dist=dists[m],
+                                              verbose=False)
+            cox = int(np.round(cox))
+            coy = int(np.round(coy))
 
-        if not nproc:
-            nproc = int((cpu_count()/4))
+            cube_residuals = svd_decomp(cufc, angle_list, patch_size,
+                                        inrad, outrad, scaling, k_list,
+                                        collapse_func, neg_ang=False,
+                                        lr_mode=lr_mode, nproc=nproc2,
+                                        interp=interp, mode=mode)
 
-        if nproc == 1:
-            for m in range(n_req_inject):
-                cufc, cox, coy = create_synt_cube(cube, psf, angle_list,
-                                                  plsc, theta=thetas[m],
-                                                  flux=fluxes[m], dist=dists[m],
+            # one patch residuals per injection
+            X_ones_array[m, :] = cube_crop_frames(np.asarray(cube_residuals),
+                                                  patch_size, xy=(cox,coy),
                                                   verbose=False)
-                cox = int(np.round(cox))
-                coy = int(np.round(coy))
 
-                cube_residuals = svd_decomp(cufc, angle_list, patch_size,
-                                            inrad, outrad, scaling, k_list,
-                                            collapse_func, neg_ang=False,
-                                            lr_mode=lr_mode, nproc=nproc2,
-                                            interp=interp, mode=mode)
+    elif nproc > 1:
+        if lr_mode in ['cupy', 'randcupy', 'eigencupy']:
+            raise RuntimeError('CUPY does not play well with multiproc')
 
-                # one patch residuals per injection
-                X_ones_array[m, :] = cube_crop_frames(np.asarray(cube_residuals),
-                                                      patch_size, xy=(cox,coy),
-                                                      verbose=False)
+        if get_start_method() == 'fork' and lr_mode in ['pytorch',
+                                                        'eigenpytorch',
+                                                        'randpytorch']:
+            raise RuntimeError("Cannot use pytorch and multiprocessing "
+                               "outside main (i.e. from a jupyter cell). "
+                               "See: http://pytorch.org/docs/0.3.1/notes/"
+                               "multiprocessing.html.")
 
-        elif nproc > 1:
-            if lr_mode in ['cupy', 'randcupy', 'eigencupy']:
-                raise RuntimeError('CUPY does not play well with multiproc')
+        flux_dist_theta = zip(fluxes, dists, thetas)
 
-            if get_start_method() == 'fork' and lr_mode in ['pytorch',
-                                                            'eigenpytorch',
-                                                            'randpytorch']:
-                raise RuntimeError("Cannot use pytorch and multiprocessing "
-                                   "outside main (i.e. from a jupyter cell). "
-                                   "See: http://pytorch.org/docs/0.3.1/notes/"
-                                   "multiprocessing.html.")
+        res = pool_map(nproc, _inject_FC, cube, psf, angle_list, plsc,
+                       inrad, outrad, fixed(flux_dist_theta), k_list,
+                       scaling, collapse_func, patch_size, lr_mode, interp,
+                       mode)
+        for m in range(n_req_inject):
+            X_ones_array[m, :] = res[m]
 
-            flux_dist_theta = zip(fluxes, dists, thetas)
-
-            res = pool_map(nproc, _inject_FC, cube, psf, angle_list, plsc,
-                           inrad, outrad, fixed(flux_dist_theta), k_list,
-                           scaling, collapse_func, patch_size, lr_mode, interp,
-                           mode)
-            for m in range(n_req_inject):
-                X_ones_array[m, :] = res[m]
-
-        if normalize is not None:
+    if normalize is not None:
+        if mode == 'tmlar4d':
+            for i in range(X_ones_array.shape[0]):
+                X_ones_array[i] = normalize_01(X_ones_array[i], normalize)
+        else:
             X_ones_array = normalize_01(X_ones_array, normalize)
 
-        # Populating the ONES list
-        list_X_ones.append(X_ones_array)
-
-    X_ones_array = np.array(list_X_ones, dtype='float32')
+    X_ones_array = X_ones_array.astype('float32')
     if mode == 'mlar':
         X_ones_array = X_ones_array.reshape(-1, len(k_list), patch_size,
                                             patch_size)
     elif mode == 'tmlar':
         X_ones_array = X_ones_array.reshape(-1, nfr, patch_size, patch_size)
+    elif mode == 'tmlar4d':
+        X_ones_array = X_ones_array.reshape(-1, nfr, len(k_list), patch_size,
+                                            patch_size)
+
     return X_ones_array
 
 
@@ -175,73 +182,69 @@ def make_mlar_samples_ann_noise(input_array, angle_list, cevr_thresh, n_ks,
     scaling = None  # 'temp-mean'
     random_state = np.random.RandomState(random_seed)
     all_k_list = []
+    patches_array = []
 
-    if not isinstance(input_array, (list, tuple)):
-        input_array = [input_array]
+    frsize = int(input_array.shape[1])
 
-    for ncu, cube in enumerate(input_array):
+    if frsize > outrad + outrad + patch_size + 2:
+        frsize = int(outrad + outrad + patch_size + 2)
+        cube = cube_crop_frames(input_array, frsize, force=True, verbose=False)
 
-        if verbose:
-            print("Cube {} out of {}".format(ncu+1, len(input_array)))
-        frsize = int(cube.shape[1])
+    # making zeros
+    if verbose:
+        print("Creating the ZEROs samples")
 
-        if frsize > outrad + outrad + patch_size + 2:
-            frsize = int(outrad + outrad + patch_size + 2)
-            cube = cube_crop_frames(cube, frsize, force=True, verbose=False)
+    if not inrad >= int(patch_size/2.) + fwhm:
+        msg = "Warning: The patches are overlapping with the inner 1xFWHM "
+        msg += "annulus"
+    if not inrad > int(np.round(patch_size/2.)):
+        raise RuntimeError("Inner radius must be > half patch_size")
 
-        # making zeros
-        if verbose:
-            print("Creating the ZEROs samples")
+    k_list = get_cumexpvar(cube, 'annular', inrad, outrad, patch_size,
+                           k_list=None, cevr_thresh=cevr_thresh, n_ks=n_ks,
+                           match_len=force_klen, verbose=False)
+    all_k_list.append(k_list)
 
-        if not inrad >= int(patch_size/2.) + fwhm:
-            msg = "Warning: The patches are overlapping with the inner 1xFWHM "
-            msg += "annulus"
-        if not inrad > int(np.round(patch_size/2.)):
-            raise RuntimeError("Inner radius must be > half patch_size")
+    resdec = svd_decomp(cube, angle_list, patch_size, inrad, outrad,
+                        scaling, k_list, collapse_func, interp=interp,
+                        nproc=nproc2, lr_mode=lr_mode, neg_ang=True,
+                        mode=mode)
+    cube_residuals_negang = resdec
 
-        k_list = get_cumexpvar(cube, 'annular', inrad, outrad, patch_size,
-                               k_list=None, cevr_thresh=cevr_thresh, n_ks=n_ks,
-                               match_len=force_klen, verbose=False)
-        all_k_list.append(k_list)
-
-        resdec = svd_decomp(cube, angle_list, patch_size, inrad, outrad,
-                            scaling, k_list, collapse_func, interp=interp,
-                            nproc=nproc2, lr_mode=lr_mode, neg_ang=True,
-                            mode=mode)
-        cube_residuals_negang = resdec
-
-        width = outrad - inrad
-        yy, xx = get_annulus_segments((frsize, frsize), inrad, width, 1)[0]
-        if nsamp_sep is None:
-            num_patches = yy.shape[0]
+    width = outrad - inrad
+    yy, xx = get_annulus_segments((frsize, frsize), inrad, width, 1)[0]
+    if nsamp_sep is None:
+        num_patches = yy.shape[0]
+    else:
+        num_patches = nsamp_sep
+        if num_patches < yy.shape[0]:
+            ind = random_state.choice(yy.shape[0], nsamp_sep, replace=False)
         else:
-            num_patches = nsamp_sep
-            if num_patches < yy.shape[0]:
-                ind = random_state.choice(yy.shape[0], nsamp_sep, replace=False)
-            else:
-                ind = random_state.choice(yy.shape[0], nsamp_sep, replace=True)
-            yy = yy[ind]
-            xx = xx[ind]
-        patches_array = []
+            ind = random_state.choice(yy.shape[0], nsamp_sep, replace=True)
+        yy = yy[ind]
+        xx = xx[ind]
 
-        # 3D: n_k, y, x
-        cube_residuals_negang = np.asarray(cube_residuals_negang)
-        if verbose:
-            print("Total patches in annulus = {:}".format(num_patches))
+    cube_residuals_negang = np.asarray(cube_residuals_negang)
+    if verbose:
+        print("Total patches in annulus = {:}".format(num_patches))
 
-        # patches_array: 4D hal_n_frames*factor, n_k, patch_size, patch_size
-        # Using negative angles
-        for i in range(num_patches):
-            xy = (int(xx[i]), int(yy[i]))
-            patches_array.append(cube_crop_frames(cube_residuals_negang,
-                                                  patch_size,
-                                                  xy=xy, verbose=False))
+    for i in range(num_patches):
+        xy = (int(xx[i]), int(yy[i]))
+        patches_array.append(cube_crop_frames(cube_residuals_negang,
+                                              patch_size, xy=xy,
+                                              verbose=False))
 
-    # For MLAR and TMLAR
-    # 4D: n_patches_annulus, n_k_list, patch_size, patch_size
+    # For MLAR and TMLAR X_zeros_array is 4d:
+    # [n_patches_annulus, n_k_list, patch_size, patch_size]
+    # For TMLAR4D X_zeros_array is 5d:
+    # [n_patches_annulus, n_time_steps, n_k_list, patch_size, patch_size]
     X_zeros_array = np.asarray(patches_array)
     if normalize is not None:
-        X_zeros_array = normalize_01(X_zeros_array, normalize)
+        if mode == 'tmlar4d':
+            for i in range(X_zeros_array.shape[0]):
+                X_zeros_array[i] = normalize_01(X_zeros_array[i], normalize)
+        else:
+            X_zeros_array = normalize_01(X_zeros_array, normalize)
     return X_zeros_array, np.vstack(all_k_list)
 
 

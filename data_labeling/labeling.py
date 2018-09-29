@@ -60,7 +60,7 @@ class DataLabeler:
             annulus, so the total number of samples for the annulus is ~
             2 * 3 * n_annuli * n_samples * n_temporal_pairwise_slices. The later
             term has a variable value.
-        sample_type : {'mlar', 'tmlar' 'pw2d', 'pw3d}
+        sample_type : {'mlar', 'tmlar', 'tmlar4d', 'pw2d', 'pw3d}
             Type of labeled data depending on the model to be use (SODINN-svd or
             SODINN-pairwise).
         cube
@@ -113,13 +113,15 @@ class DataLabeler:
         for i in range(self.n_cubes):
             self.cube[i] = self.cube[i].astype('float32')
 
-        if sample_type not in ('mlar', 'tmlar', 'pw2d', 'pw3d'):
+        if sample_type not in ('mlar', 'tmlar', 'tmlar4d', 'pw2d', 'pw3d'):
             raise ValueError("`Sample_type` not recognized")
         self.sample_type = sample_type
         if self.sample_type == 'pw2d':
             self.sample_dim = 2
         elif self.sample_type in ('pw3d', 'mlar', 'tmlar'):
             self.sample_dim = 3
+        elif self.sample_type == 'tmlar4d':
+            self.sample_dim = 4
 
         if isinstance(pa, np.ndarray):
             if cube.ndim == 3:
@@ -191,7 +193,7 @@ class DataLabeler:
         else:
             self.radius_int = radius_int
 
-        if self.sample_type in ('mlar', 'tmlar'):
+        if self.sample_type in ('mlar', 'tmlar', 'tmlar4d'):
             self.sampling_sep = int(round(fwhm))
         elif self.sample_type in ('pw2d', 'pw3d'):
             self.sampling_sep = 1
@@ -231,7 +233,7 @@ class DataLabeler:
         if self.sample_type in ('pw2d', 'pw3d'):
             max_rad = cy - self.patch_size_px - 4
             dist = [int(d) for d in range(self.radius_int, int(max_rad))]
-        elif self.sample_type in ('mlar', 'tmlar'):
+        elif self.sample_type in ('mlar', 'tmlar', 'tmlar4d'):
             max_rad = cy - (self.patch_size_px * 2 + self.sampling_sep)
             n_annuli = int(max_rad / self.sampling_sep)
             dist = [int(self.radius_int + i * self.sampling_sep) for i
@@ -357,7 +359,7 @@ class DataLabeler:
         plt.figure(figsize=(10, 4), dpi=dpi)
         plt.plot(distances, radprof, '--', alpha=0.8, color='gray', lw=2,
                  label='average radial profile')
-        if self.sample_type in ('mlar', 'tmlar'):
+        if self.sample_type in ('mlar', 'tmlar', 'tmlar4d'):
             distplot = distances
         elif self.sample_type in ('pw2d', 'pw3d'):
             distplot = distances_init
@@ -380,7 +382,7 @@ class DataLabeler:
     def _sample_flux_snr(self, n_injections, n_proc):
         """
         """
-        if self.sample_type in ('mlar', 'tmlar'):
+        if self.sample_type in ('mlar', 'tmlar', 'tmlar4d'):
             sampling_sep = self.sampling_sep
             distances = GARRDIST
         elif self.sample_type in ('pw2d', 'pw3d'):
@@ -797,10 +799,10 @@ class DataLabeler:
             self.save(self.save_filename_labdata)
 
     def inspect_samples(self, index=None, max_slices=None, n_samples=5,
-                        init_sample=None, cmap='bone', dpi=20, **kwargs):
+                        init_sample=None, cmap='bone', dpi=10, **kwargs):
         """
         """
-        if self.sample_type in ('pw3d', 'mlar', 'tmlar'):
+        if self.sample_type in ('pw3d', 'mlar', 'tmlar', 'tmlar4d'):
             if index is None:
                 if init_sample is None:
                     init_sample = np.random.randint(50, size=1)[0]
@@ -815,7 +817,6 @@ class DataLabeler:
 
             n_slices = self.x_plus[0].shape[0]
             print(msg0.format(index))
-            print(msg1.format(self.y_plus[index]))
             if max_slices is None or max_slices >= n_slices:
                 show_n_slices = n_slices
                 ind_slices = range(self.x_plus[0].shape[0])
@@ -824,16 +825,36 @@ class DataLabeler:
                 ind_slices = np.sort(np.random.choice(n_slices, show_n_slices,
                                                       False))
 
-            for i in range(len(index)):
-                pp_subplots(self.x_plus[index[i]][ind_slices],
-                            maxplots=show_n_slices, axis=False, horsp=0.05,
-                            colorb=False, cmap=cmap, dpi=dpi, **kwargs)
-            print(msg1.format(self.y_minus[index]))
+            if self.sample_type == 'tmlar4d':
+                print(msg1.format(self.y_plus[index]))
+                for i in range(len(index)):
+                    for j in range(self.x_plus[index[i]].shape[1]):
+                        pp_subplots(self.x_plus[index[i], ind_slices, j],
+                                    maxplots=show_n_slices, axis=False,
+                                    horsp=0.05, colorb=False, cmap=cmap,
+                                    dpi=dpi, **kwargs)
+                    print('')
 
-            for i in range(len(index)):
-                pp_subplots(self.x_minus[index[i]][ind_slices],
-                            maxplots=show_n_slices, axis=False, horsp=0.05,
-                            colorb=False, cmap=cmap, dpi=dpi, **kwargs)
+                print(msg1.format(self.y_minus[index]))
+                for i in range(len(index)):
+                    for j in range(self.x_minus[index[i]].shape[1]):
+                        pp_subplots(self.x_minus[index[i], ind_slices, j],
+                                    maxplots=show_n_slices, axis=False,
+                                    horsp=0.05, colorb=False, cmap=cmap,
+                                    dpi=dpi, **kwargs)
+                    print('')
+            else:
+                print(msg1.format(self.y_plus[index]))
+                for i in range(len(index)):
+                    pp_subplots(self.x_plus[index[i]][ind_slices],
+                                maxplots=show_n_slices, axis=False, horsp=0.05,
+                                colorb=False, cmap=cmap, dpi=dpi, **kwargs)
+
+                print(msg1.format(self.y_minus[index]))
+                for i in range(len(index)):
+                    pp_subplots(self.x_minus[index[i]][ind_slices],
+                                maxplots=show_n_slices, axis=False, horsp=0.05,
+                                colorb=False, cmap=cmap, dpi=dpi, **kwargs)
 
         elif self.sample_type == 'pw2d':
             if index is None:
@@ -908,7 +929,7 @@ class DataLabeler:
                 ################################################################
                 # SODINN-SVD
                 ################################################################
-                if self.sample_type in ('mlar', 'tmlar'):
+                if self.sample_type in ('mlar', 'tmlar', 'tmlar4d'):
                     width = 1 * self.fwhm
                     self.k_list = []
 
@@ -934,8 +955,13 @@ class DataLabeler:
                         print('-', end='')
                         self.k_list.append(res0[1])
                         res0 = res0[0]
-                        if i == 0 and d == 0 and res0.shape[1] < self.n_ks:
-                            self.n_ks = res0.shape[1]
+
+                        if self.sample_type in ('mlar', 'tmlar'):
+                            if i == 0 and d == 0 and res0.shape[1] < self.n_ks:
+                                self.n_ks = res0.shape[1]
+                        elif self.sample_type == 'tmlar4d':
+                            if i == 0 and d == 0 and res0.shape[2] < self.n_ks:
+                                self.n_ks = res0.shape[2]
 
                         # Injecting the same number of companions to balance
                         f1 = make_mlar_samples_ann_signal
@@ -951,8 +977,12 @@ class DataLabeler:
                         # Saving data to HDF5 file
                         if i == 0 and d == 0:
                             atom = tables.Atom.from_dtype(res0.dtype)
-                            dshape = (0, res0.shape[1], res0.shape[2],
-                                      res0.shape[3])
+                            if self.sample_type in ('malr', 'tmlar'):
+                                dshape = (0, res0.shape[1], res0.shape[2],
+                                          res0.shape[3])
+                            elif self.sample_type == 'tmlar4d':
+                                dshape = (0, res0.shape[1], res0.shape[2],
+                                          res0.shape[3], res0.shape[4])
                             data_cmin = fileh.create_earray(where=fileh.root,
                                                             name='c_minus',
                                                             atom=atom,
