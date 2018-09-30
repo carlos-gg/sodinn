@@ -9,7 +9,7 @@ import tables
 from copy import deepcopy
 from vip_hci.var.plotting import pp_subplots
 from .prediction_pw import predict_pairwise
-from .prediction_svd import predict_mlar
+from .prediction_mlar import predict_mlar
 from ..data_labeling.labeling import DataLabeler
 from ..models import Model
 
@@ -229,7 +229,7 @@ class Predictor:
         if self.sample_type in ('pw2d', 'pw3d'):
             print('\tSample dim : {}'.format(self.sample_dim))
             print('\tHP filter : {}'.format(self.high_pass))
-        elif self.sample_type in ('mlar', 'tmlar'):
+        elif self.sample_type in ('mlar', 'tmlar', 'tmlar4d'):
             print('\tCEVR thresh : {}'.format(self.cevr_thresh))
             print('\tN k slices : {}'.format(self.n_ks))
         print('\tNormalization : {}'.format(self.normalization))
@@ -342,7 +342,7 @@ class Predictor:
             coords = None
             probas = None
 
-        elif self.sample_type in ('mlar', 'tmlar'):
+        elif self.sample_type in ('mlar', 'tmlar', 'tmlar4d'):
             if self.radius_out is None:
                 # ann_width = fwhm + size_patch + 2 (for the MLAR samples)
                 halfsize = int(cube.shape[1] / 2)
