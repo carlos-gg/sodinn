@@ -11,7 +11,7 @@ from vip_hci.var.plotting import pp_subplots
 from .prediction_pw import predict_pairwise
 from .prediction_mlar import predict_mlar
 from ..data_labeling.labeling import DataLabeler
-from ..models import Model
+from ..models.models import Model
 
 
 class Predictor:

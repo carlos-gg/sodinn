@@ -48,7 +48,6 @@ def predict_mlar(mode, model, cube, angle_list, fwhm, in_ann, out_ann,
 
     patches = np.vstack(patches)
     coords = np.vstack(coords)
-    print(patches.shape, coords.shape)
 
     if verbose:
         timing(starttime)
@@ -70,9 +69,7 @@ def predict_mlar(mode, model, cube, angle_list, fwhm, in_ann, out_ann,
             if mode == 'tmlar4d':
                 # patches = [patches[:, :, k] for k in range(n_ks)]
                 patches = list(np.moveaxis(patches, 2, 0))
-                print(len(patches), patches[0].shape)
             probas = model.predict(patches, verbose=verbose)
-            print(probas.shape)
 
         elif flayer_name == 'conv2d_layer1':
             ntotal = patches.shape[0]
