@@ -39,10 +39,6 @@ def make_mlar_samples_ann_signal(input_array, angle_list, psf, n_samples,
     dist_flux_p2 = flux_high
     collapse_func = np.mean
     scaling = None  # 'temp-mean'
-
-    if not isinstance(input_array, list):
-        input_array = [input_array]
-
     random_state = np.random.RandomState(random_seed)
 
     # making ones, injecting companions. The other half of n_samples
@@ -183,7 +179,6 @@ def make_mlar_samples_ann_noise(input_array, angle_list, cevr_thresh, n_ks,
     random_state = np.random.RandomState(random_seed)
     all_k_list = []
     patches_array = []
-
     frsize = int(input_array.shape[1])
 
     if frsize > outrad + outrad + patch_size + 2:
