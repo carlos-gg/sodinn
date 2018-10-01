@@ -1158,6 +1158,7 @@ class DataLabeler:
         fh5 = tables.open_file(filename, mode='r')
         fh5r = fh5.root
 
+        identifier = int(str(fh5r.labda_identifier[0].decode()).split('v')[-1])
         obj = cls(sample_type=str(fh5r.sample_type[0].decode()),
                   cube=np.array(fh5r.cube),
                   pa=np.array(fh5r.pa), psf=np.array(fh5r.psf),
@@ -1176,8 +1177,9 @@ class DataLabeler:
                   imlib=str(fh5r.imlib[0].decode()),
                   interpolation=str(fh5r.interpolation[0].decode()),
                   n_proc=fh5r.n_proc.read(),
-                  random_seed=fh5r.random_seed.read(),
-                  save=str(fh5r.save_filename_labdata[0].decode()), reload=True)
+                  random_seed=fh5r.random_seed.read(), identifier=identifier,
+                  dir_path=str(fh5r.save_filename_labdata[0].decode()),
+                  reload=True)
 
         obj.augmented = fh5r.augmented.read()
         if hasattr(fh5r, 'cubehp'):
