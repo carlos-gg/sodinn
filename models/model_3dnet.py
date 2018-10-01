@@ -160,7 +160,7 @@ def train_3dnet(X, Y, test_size=0.1, validation_split=0.1, random_state=0,
                 raise ValueError(
                     'Kernel sizes for Conv3d are tuples of 3 values')
             if not len(conv_strides[i]) == 3:
-                raise ValueError('Srides for Conv3d are tuples of 3 values')
+                raise ValueError('Strides for Conv3d are tuples of 3 values')
             if not len(dilation_rate[i]) == 3:
                 raise ValueError('Dilation for Conv3d is a tuple of 3 values')
 
@@ -311,12 +311,6 @@ def train_3dnet(X, Y, test_size=0.1, validation_split=0.1, random_state=0,
                                       input_shape=input_shape))
                 # This version performs the same function as Dropout, however it
                 # drops entire 2D feature maps instead of individual elements.
-                # If adjacent pixels within feature maps are strongly correlated
-                # (as is normally the case in early convolution layers) then
-                # regular dropout will not regularize the activations and will
-                # otherwise just result in an effective learning rate decrease.
-                # In this case, SpatialDropout2D will help promote independence
-                # between feature maps and should be used instead.
                 M.add(TimeDistributed(SpatialDropout2D(0.5)))
             else:
                 M.add(TimeDistributed(Conv2D(filters=conv_nfilters[i],
