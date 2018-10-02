@@ -11,7 +11,7 @@ import numpy as np
 import tensorflow as tf
 from tensorflow.keras import models
 from tensorflow.keras.backend import set_session, get_session, clear_session
-from data_labeling.labeling import DataLabeler
+from ..data_labeling.labeling import DataLabeler
 from .model_2dcnn import train_2dconvnet
 from .model_3dnet import train_3dnet
 from .model_4dnet import train_4dnet
