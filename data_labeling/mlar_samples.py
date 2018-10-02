@@ -202,8 +202,7 @@ def make_mlar_samples_ann_noise(input_array, angle_list, cevr_thresh, n_ks,
 
     resdec = svd_decomp(cube, angle_list, patch_size, inrad, outrad,
                         scaling, k_list, collapse_func, interp=interp,
-                        nproc=nproc2, lr_mode=lr_mode, neg_ang=True,
-                        mode=mode)
+                        nproc=nproc2, lr_mode=lr_mode, neg_ang=True, mode=mode)
     cube_residuals_negang = resdec
 
     width = outrad - inrad

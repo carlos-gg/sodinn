@@ -110,58 +110,203 @@ def train_4dnet(X, Y, test_size=0.1, validation_split=0.1, random_state=0,
 
     # --------------------------------------------------------------------------
     # Per branch model
+    # --------------------------------------------------------------------------
     input_layer = Input(shape=input_shape_3d, name='input_layer',
                         dtype='float32')
 
-    first_layer = ConvLSTM2D(filters=conv_nfilters[0],
+    # Stack of Conv3d, (B)CLSTM, (B)LRCN or (B)GRCN layers
+    if layer_type[0] in ('conv3d', 'clstm', 'bclstm'):
+        if pool_func == 'ave':
+            pooling_func = AveragePooling3D
+        elif pool_func == 'max':
+            pooling_func = MaxPooling3D
+    elif layer_type[0] in ('lrcn', 'blrcn', 'grcn', 'bgrcn'):
+        if pool_func == 'ave':
+            pooling_func = AveragePooling2D
+        elif pool_func == 'max':
+            pooling_func = MaxPooling2D
+    else:
+        raise ValueError('pool_func is not recognized')
+
+    if layer_type[0] == 'conv3d':
+        if not len(kernel_sizes[0]) == 3:
+            raise ValueError(
+                'Kernel sizes for Conv3d are tuples of 3 values')
+        if not len(conv_strides[0]) == 3:
+            raise ValueError('Strides for Conv3d are tuples of 3 values')
+        if not len(dilation_rate[0]) == 3:
+            raise ValueError('Dilation for Conv3d is a tuple of 3 values')
+
+        first_layer = Conv3D(filters=conv_nfilters[0],
                              kernel_size=kernel_sizes[0],
-                             strides=conv_strides[0], padding=conv_padding,
+                             strides=conv_strides[0],
+                             padding=conv_padding,
                              kernel_initializer=kernel_init,
-                             input_shape=input_shape_3d,
-                             name='convlstm_layer1',
-                             return_sequences=True,
+                             bias_initializer=bias_init,
+                             name='conv3d_layer1',
                              dilation_rate=dilation_rate[0],
-                             activation='tanh',
-                             recurrent_activation=rec_act,
-                             use_bias=True, recurrent_initializer=rec_init,
-                             bias_initializer='zeros',
-                             unit_forget_bias=True,
-                             dropout=0.0, recurrent_dropout=0.0)(input_layer)
+                             data_format='channels_last',
+                             input_shape=input_shape_3d)(input_layer)
 
-    first_dropout = SpatialDropout3D(0.5)(first_layer)
+        first_dropout = SpatialDropout3D(0.5)(first_layer)
 
-    first_pool = pooling_func(pool_size=pool_sizes[0], strides=pool_strides[0],
-                              padding='valid')(first_dropout)
+        first_activ = Activation(activation,
+                                 name='activ_layer1')(first_dropout)
 
-    second_layer = ConvLSTM2D(filters=conv_nfilters[1],
+        first_pool = pooling_func(pool_size=pool_sizes[0],
+                                  strides=pool_strides[0],
+                                  padding='valid')(first_activ)
+
+        second_layer = Conv3D(filters=conv_nfilters[1],
                               kernel_size=kernel_sizes[1],
-                              strides=conv_strides[1], padding=conv_padding,
+                              strides=conv_strides[1],
+                              padding=conv_padding,
                               kernel_initializer=kernel_init,
-                              name='convlstm_layer2',
-                              return_sequences=True,
                               dilation_rate=dilation_rate[1],
-                              activation='tanh',
-                              recurrent_activation=rec_act,
-                              use_bias=True, recurrent_initializer=rec_init,
-                              bias_initializer='zeros',
-                              unit_forget_bias=True,
-                              dropout=0.0, recurrent_dropout=0.0)(first_pool)
+                              name='conv3d_layer2')(first_pool)
 
-    second_dropout = SpatialDropout3D(0.25)(second_layer)
+        second_dropout = SpatialDropout3D(0.25)(second_layer)
 
-    second_pool = pooling_func(pool_size=pool_sizes[1], strides=pool_strides[1],
-                               padding='valid')(second_dropout)
+        second_activ = Activation(activation,
+                                  name='activ_layer2')(second_dropout)
 
-    flatten = Flatten(name='flatten')(second_pool)
+        second_pool = pooling_func(pool_size=pool_sizes[1],
+                                   strides=pool_strides[1],
+                                   padding='valid')(second_activ)
+
+        flatten_layer = Flatten(name='flatten')(second_pool)
+
+    elif layer_type[0] == 'clstm':
+        msg = 'are tuples of 2 integers'
+        if not len(kernel_sizes[0]) == 2:
+            raise ValueError('Kernel sizes for ConvLSTM' + msg)
+        if not len(conv_strides[0]) == 2:
+            raise ValueError('Strides for ConvLSTM')
+        if not len(dilation_rate[0]) == 2:
+            raise ValueError('Dilation rates for ConvLSTM')
+
+        first_layer = ConvLSTM2D(filters=conv_nfilters[0],
+                                 kernel_size=kernel_sizes[0],
+                                 strides=conv_strides[0], padding=conv_padding,
+                                 kernel_initializer=kernel_init,
+                                 input_shape=input_shape_3d,
+                                 name='convlstm_layer1',
+                                 return_sequences=True,
+                                 dilation_rate=dilation_rate[0],
+                                 activation='tanh',
+                                 recurrent_activation=rec_act,
+                                 use_bias=True, recurrent_initializer=rec_init,
+                                 bias_initializer='zeros',
+                                 unit_forget_bias=True, dropout=0.0,
+                                 recurrent_dropout=0.0)(input_layer)
+
+        first_dropout = SpatialDropout3D(0.5)(first_layer)
+
+        first_pool = pooling_func(pool_size=pool_sizes[0],
+                                  strides=pool_strides[0],
+                                  padding='valid')(first_dropout)
+
+        second_layer = ConvLSTM2D(filters=conv_nfilters[1],
+                                  kernel_size=kernel_sizes[1],
+                                  strides=conv_strides[1], padding=conv_padding,
+                                  kernel_initializer=kernel_init,
+                                  name='convlstm_layer2',
+                                  return_sequences=True,
+                                  dilation_rate=dilation_rate[1],
+                                  activation='tanh',
+                                  recurrent_activation=rec_act,
+                                  use_bias=True, recurrent_initializer=rec_init,
+                                  bias_initializer='zeros',
+                                  unit_forget_bias=True,
+                                  dropout=0.0, recurrent_dropout=0.0)(first_pool)
+
+        second_dropout = SpatialDropout3D(0.25)(second_layer)
+
+        second_pool = pooling_func(pool_size=pool_sizes[1],
+                                   strides=pool_strides[1],
+                                   padding='valid')(second_dropout)
+
+        flatten_layer = Flatten(name='flatten')(second_pool)
+
+    elif layer_type[0] in ('lrcn', 'blrcn', 'grcn', 'bgrcn'):
+        if not len(kernel_sizes[0]) == 2:
+            raise ValueError(
+                'Kernel sizes for LRCN are tuples of 2 values')
+        if not len(conv_strides[0]) == 2:
+            raise ValueError('Strides for LRCN are tuples of 2 values')
+        if not len(dilation_rate[0]) == 2:
+            raise ValueError('Dilation for LRCN is a tuple of 2 values')
+
+        # TimeDistributed wrapper applies a layer to every temporal
+        # slice of an input. The input should be at least 3D and the
+        # dimension of index one will be considered to be the temporal
+        # dimension.
+        first_layer = TimeDistributed(Conv2D(filters=conv_nfilters[0],
+                                             kernel_size=kernel_sizes[0],
+                                             strides=conv_strides[0],
+                                             padding=conv_padding,
+                                             name='lrcn_layer1',
+                                             activation=activation),
+                                      input_shape=input_shape_3d)(input_layer)
+
+        # This version performs the same function as Dropout, however it
+        # drops entire 2D feature maps instead of individual elements.
+        first_dropout = TimeDistributed(SpatialDropout2D(0.5))(first_layer)
+
+        first_pool = TimeDistributed(pooling_func(pool_size=pool_sizes[0],
+                                                  strides=pool_strides[0],
+                                                  padding='valid'))(first_dropout)
+
+        second_layer = TimeDistributed(Conv2D(filters=conv_nfilters[1],
+                                              kernel_size=kernel_sizes[1],
+                                              strides=conv_strides[1],
+                                              padding=conv_padding,
+                                              name='lrcn_layer2',
+                                              activation=activation))(first_pool)
+
+        second_dropout = TimeDistributed(SpatialDropout2D(0.25))(second_layer)
+
+        second_pool = TimeDistributed(pooling_func(pool_size=pool_sizes[1],
+                                                   strides=pool_strides[1],
+                                                   padding='valid'))(second_dropout)
+
+        if layer_type[1] == 'lrcn':
+            flatten = TimeDistributed(Flatten(name='flatten'))(second_pool)
+            flatten_dropout = Dropout(0.5, name='dropout_flatten')(flatten)
+            lstm = CuDNNLSTM(rec_hidden_states, kernel_initializer=kernel_init,
+                             return_sequences=False)(flatten_dropout)
+            flatten_layer = Dropout(0.5, name='dropout_lstm')(lstm)
+        elif layer_type[1] == 'blrcn':
+            flatten = TimeDistributed(Flatten(name='flatten'))(second_pool)
+            flatten_dropout = Dropout(0.5, name='dropout_flatten')(flatten)
+            blstm = Bidirectional(LSTM(rec_hidden_states,  # TODO: bug CuDNNLSTM?
+                                       kernel_initializer=kernel_init,
+                                       return_sequences=False))(flatten_dropout)
+            flatten_layer = Dropout(0.5, name='dropout_lstm')(blstm)
+        elif layer_type[1] == 'grcn':
+            flatten = TimeDistributed(Flatten(name='flatten'))(second_pool)
+            flatten_dropout = Dropout(0.5, name='dropout_flatten')(flatten)
+            gru = CuDNNGRU(rec_hidden_states, kernel_initializer=kernel_init,
+                           return_sequences=False)(flatten_dropout)
+            flatten_layer = Dropout(0.5, name='dropout_lstm')(gru)
+        elif layer_type[1] == 'bgrcn':
+            flatten = TimeDistributed(Flatten(name='flatten'))(second_pool)
+            flatten_dropout = Dropout(0.5, name='dropout_flatten')(flatten)
+            bgru = Bidirectional(CuDNNGRU(rec_hidden_states,
+                                          kernel_initializer=kernel_init,
+                                          return_sequences=False))(flatten_dropout)
+            flatten_layer = Dropout(0.5, name='dropout_lstm')(bgru)
 
     # Fully-connected or dense layer
-    dense = Dense(units=dense_units, name='dense_layer')(flatten)
+    dense = Dense(units=dense_units, name='dense_layer')(flatten_layer)
     dense = Activation(activation, name='activ_dense')(dense)
     dense = Dropout(rate=0.5, name='dropout_dense')(dense)
 
     model_branch = KerasModel(inputs=input_layer, outputs=dense)
     # --------------------------------------------------------------------------
-
+    # --------------------------------------------------------------------------
+    # Multi-input model
+    # --------------------------------------------------------------------------
     inputs = []
     outputs = []
     for i in range(k_dim):
@@ -178,9 +323,11 @@ def train_4dnet(X, Y, test_size=0.1, validation_split=0.1, random_state=0,
                        activation='sigmoid')(concatenated)
 
     model_final = KerasModel(inputs=inputs, outputs=prediction)
+    # --------------------------------------------------------------------------
 
     if summary:
-        model_final.summary()
+        model_branch.summary()
+        # model_final.summary()
 
     # Callbacks
     early_stopping = EarlyStopping(monitor='val_loss', patience=patience,
