@@ -14,7 +14,7 @@ from vip_hci.pca import pca, svd_wrapper, randomized_svd_gpu
 from vip_hci.conf.utils_conf import (pool_map, fixed, make_chunks)
 from multiprocessing import Pool, cpu_count
 from multiprocessing import get_start_method
-from ..utils import (normalize_01, create_synt_cube)
+from ..utils import (normalize_01, create_synt_cube, cube_move_subsample)
 import warnings
 warnings.filterwarnings(action='ignore', category=UserWarning)
 
@@ -24,7 +24,8 @@ def make_mlar_samples_ann_signal(input_array, angle_list, psf, n_samples,
                                  patch_size, flux_low, flux_high, plsc=0.01,
                                  normalize='slice', nproc=1, nproc2=1,
                                  interp='bilinear', lr_mode='eigen',
-                                 mode='mlar', random_seed=42, verbose=False):
+                                 mode='mlar', kss_window=None, tss_window=None,
+                                 random_seed=42, verbose=False):
     """
     n_samples : For ONEs, half_n_samples SVDs
 
@@ -114,9 +115,9 @@ def make_mlar_samples_ann_signal(input_array, angle_list, psf, n_samples,
                                         interp=interp, mode=mode)
 
             # one patch residuals per injection
-            X_ones_array[m, :] = cube_crop_frames(np.asarray(cube_residuals),
-                                                  patch_size, xy=(cox,coy),
-                                                  verbose=False)
+            X_ones_array[m] = cube_crop_frames(np.asarray(cube_residuals),
+                                               patch_size, xy=(cox, coy),
+                                               verbose=False)
 
     elif nproc > 1:
         if lr_mode in ['cupy', 'randcupy', 'eigencupy']:
@@ -137,7 +138,23 @@ def make_mlar_samples_ann_signal(input_array, angle_list, psf, n_samples,
                        scaling, collapse_func, patch_size, lr_mode, interp,
                        mode)
         for m in range(n_req_inject):
-            X_ones_array[m, :] = res[m]
+            X_ones_array[m] = res[m]
+
+    # Moving-subsampling
+    move_subsampling = 'median'
+    if mode == 'mlar' and kss_window is not None:
+        X_ones_array = cube_move_subsample(X_ones_array, kss_window, axis=1,
+                                           mode=move_subsampling)
+    elif mode == 'tmlar' and tss_window is not None:
+        X_ones_array = cube_move_subsample(X_ones_array, kss_window, axis=1,
+                                           mode=move_subsampling)
+    elif mode == 'tmlar4d':
+        if tss_window is not None:
+            X_ones_array = cube_move_subsample(X_ones_array, tss_window,
+                                               axis=1, mode=move_subsampling)
+        if kss_window is not None:
+            X_ones_array = cube_move_subsample(X_ones_array, kss_window,
+                                               axis=2, mode=move_subsampling)
 
     if normalize is not None:
         if mode == 'tmlar4d':
@@ -146,24 +163,15 @@ def make_mlar_samples_ann_signal(input_array, angle_list, psf, n_samples,
         else:
             X_ones_array = normalize_01(X_ones_array, normalize)
 
-    X_ones_array = X_ones_array.astype('float32')
-    if mode == 'mlar':
-        X_ones_array = X_ones_array.reshape(-1, len(k_list), patch_size,
-                                            patch_size)
-    elif mode == 'tmlar':
-        X_ones_array = X_ones_array.reshape(-1, nfr, patch_size, patch_size)
-    elif mode == 'tmlar4d':
-        X_ones_array = X_ones_array.reshape(-1, nfr, len(k_list), patch_size,
-                                            patch_size)
-
-    return X_ones_array
+    return X_ones_array.astype('float32')
 
 
 def make_mlar_samples_ann_noise(input_array, angle_list, cevr_thresh, n_ks,
                                 force_klen, inrad, outrad, patch_size, fwhm=4,
                                 normalize='slice', nproc2=1, interp='bilinear',
-                                lr_mode='eigen', mode='mlar', random_seed=42,
-                                nsamp_sep=None, verbose=False):
+                                lr_mode='eigen', mode='mlar', kss_window=None,
+                                tss_window=None, random_seed=42, nsamp_sep=None,
+                                verbose=False):
     """
     patch_size in pxs
 
@@ -177,8 +185,7 @@ def make_mlar_samples_ann_noise(input_array, angle_list, cevr_thresh, n_ks,
     collapse_func = np.mean
     scaling = None  # 'temp-mean'
     random_state = np.random.RandomState(random_seed)
-    all_k_list = []
-    patches_array = []
+    patches_list = []
     frsize = int(input_array.shape[1])
 
     if frsize > outrad + outrad + patch_size + 2:
@@ -198,7 +205,6 @@ def make_mlar_samples_ann_noise(input_array, angle_list, cevr_thresh, n_ks,
     k_list = get_cumexpvar(cube, 'annular', inrad, outrad, patch_size,
                            k_list=None, cevr_thresh=cevr_thresh, n_ks=n_ks,
                            match_len=force_klen, verbose=False)
-    all_k_list.append(k_list)
 
     resdec = svd_decomp(cube, angle_list, patch_size, inrad, outrad,
                         scaling, k_list, collapse_func, interp=interp,
@@ -224,22 +230,41 @@ def make_mlar_samples_ann_noise(input_array, angle_list, cevr_thresh, n_ks,
 
     for i in range(num_patches):
         xy = (int(xx[i]), int(yy[i]))
-        patches_array.append(cube_crop_frames(cube_residuals_negang,
-                                              patch_size, xy=xy,
-                                              verbose=False))
+        patches_list.append(cube_crop_frames(cube_residuals_negang,
+                                             patch_size, xy=xy, verbose=False))
 
     # For MLAR and TMLAR X_zeros_array is 4d:
-    # [n_patches_annulus, n_k_list, patch_size, patch_size]
+    # [n_patches_annulus, n_k_list || n_time_steps, patch_size, patch_size]
     # For TMLAR4D X_zeros_array is 5d:
     # [n_patches_annulus, n_time_steps, n_k_list, patch_size, patch_size]
-    X_zeros_array = np.asarray(patches_array)
+    X_zeros_array = np.array(patches_list)
+
+    n_ks = len(k_list)
+
+    # Moving-subsampling
+    move_subsampling = 'median'
+    if mode == 'mlar' and kss_window is not None:
+        X_zeros_array = cube_move_subsample(X_zeros_array, kss_window, axis=1,
+                                            mode=move_subsampling)
+    elif mode == 'tmlar' and tss_window is not None:
+        X_zeros_array = cube_move_subsample(X_zeros_array, kss_window, axis=1,
+                                            mode=move_subsampling)
+    elif mode == 'tmlar4d':
+        if tss_window is not None:
+            X_zeros_array = cube_move_subsample(X_zeros_array, tss_window,
+                                                axis=1, mode=move_subsampling)
+        if kss_window is not None:
+            X_zeros_array = cube_move_subsample(X_zeros_array, kss_window,
+                                                axis=2, mode=move_subsampling)
+
+    # Normalization
     if normalize is not None:
         if mode == 'tmlar4d':
             for i in range(X_zeros_array.shape[0]):
                 X_zeros_array[i] = normalize_01(X_zeros_array[i], normalize)
         else:
             X_zeros_array = normalize_01(X_zeros_array, normalize)
-    return X_zeros_array, np.vstack(all_k_list)
+    return X_zeros_array.astype('float32'), k_list, n_ks
 
 
 def _inject_FC(cube, psf, angle_list, plsc, inrad, outrad, flux_dist_theta,
