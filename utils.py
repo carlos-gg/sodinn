@@ -11,6 +11,7 @@ __all__ = ['close_hdf5_files']
 import gc
 import tables
 import numpy as np
+import bottleneck as bn
 from skimage.draw import circle
 from matplotlib.pyplot import (figure, show, subplot, title, hist)
 import cv2
@@ -59,6 +60,27 @@ def create_synt_cube(cube, psf, ang, plsc, dist=None, theta=None, flux=None,
                                     verbose=verbose)
 
     return cubefc, posx, posy
+
+
+def cube_move_subsample(cube, window, axis=0, mode='mean'):
+    """
+    """
+    if mode == 'median':
+        func = bn.move_median
+    elif mode == 'mean':
+        func = bn.move_mean
+    else:
+        raise ValueError('`mode` not recognized')
+
+    cube_ms = func(cube, window=window, axis=axis)
+    if axis == 0:
+        cube_ms = cube_ms[window-1:]
+    elif axis == 1:
+        cube_ms = cube_ms[:, window - 1:]
+    elif axis == 2:
+        cube_ms = cube_ms[:, :, window - 1:]
+
+    return cube_ms
 
 
 def normalize_01_pw(cube, mode):
