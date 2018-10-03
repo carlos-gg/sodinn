@@ -43,9 +43,9 @@ class DataLabeler:
                  fwhm=4, plsc=0.01, delta_rot=0.5, patch_size=4, slice3d=True,
                  high_pass='laplacian', kernel_size=5, normalization='slice',
                  min_adi_snr=1, max_adi_snr=3, cevr_thresh=0.99, n_ks=20,
-                 lr_mode='eigen', imlib='opencv', interpolation='bilinear',
-                 n_proc=1, random_seed=42, identifier=1, dir_path=None,
-                 reload=False):
+                 kss_window=None, tss_window=None, lr_mode='eigen',
+                 imlib='opencv', interpolation='bilinear', n_proc=1,
+                 random_seed=42, identifier=1, dir_path=None, reload=False):
         """
 
         cube : 3d ndarray or tuple of 3d ndarrays
@@ -170,6 +170,8 @@ class DataLabeler:
         self.interpolation = interpolation
         self.cevr_thresh = cevr_thresh
         self.n_ks = n_ks
+        self.kss_window = kss_window
+        self.tss_window = tss_window
         self.lr_mode = lr_mode
         self.min_adi_snr = min_adi_snr
         self.max_adi_snr = max_adi_snr
@@ -182,9 +184,11 @@ class DataLabeler:
 
         # save_filename_labdata: eg. dir_path/labda_mlar_v1
         self.labda_identifier = 'v' + str(identifier)
+        self.dir_path = dir_path
         if dir_path is not None:
-            self.save_filename_labdata = dir_path + 'labda_' + sample_type \
-                                         + '_' + self.labda_identifier
+            self.save_filename_labdata = self.dir_path + 'labda_' + \
+                                         self.sample_type + '_' + \
+                                         self.labda_identifier
         else:
             self.save_filename_labdata = None
 
@@ -231,10 +235,11 @@ class DataLabeler:
         """
         cy, cx = frame_center(cube[0])
         if self.sample_type in ('pw2d', 'pw3d'):
-            max_rad = cy - self.patch_size_px - 4
+            max_rad = cy - self.patch_size_px - 4 - self.radius_int
             dist = [int(d) for d in range(self.radius_int, int(max_rad))]
         elif self.sample_type in ('mlar', 'tmlar', 'tmlar4d'):
-            max_rad = cy - (self.patch_size_px * 2 + self.sampling_sep)
+            max_rad = cy - (self.patch_size_px * 2 + self.sampling_sep) \
+                      - self.radius_int
             n_annuli = int(max_rad / self.sampling_sep)
             dist = [int(self.radius_int + i * self.sampling_sep) for i
                     in range(n_annuli)]
@@ -590,6 +595,10 @@ class DataLabeler:
         elif self.sample_type in ('pw3d', 'mlar', 'tmlar'):
             dshape = (0, self.x_minus.shape[1], self.x_minus.shape[2],
                       self.x_minus.shape[3])
+        elif self.sample_type == 'tmlar4d':
+            dshape = (0, self.x_minus.shape[1], self.x_minus.shape[2],
+                      self.x_minus.shape[3], self.x_minus.shape[4])
+
         data_cpl = fileh.create_earray(where=fileh.root, name='c_plus',
                                        atom=atom, shape=dshape)
         data_cpl.append(self.x_plus)
@@ -629,7 +638,7 @@ class DataLabeler:
                 data_cpl.append(res)
                 print('{} new C+ PW samples'.format(ncplus_samples))
 
-            elif self.sample_type in ('mlar', 'tmlar'):
+            elif self.sample_type in ('mlar', 'tmlar', 'tmlar4d'):
                 print("Making new C+ MLAR samples:")
                 width = 1 * self.fwhm
                 distances = self.distances[i]
@@ -646,7 +655,7 @@ class DataLabeler:
                             self.flo[i][d], self.fhi[i][d], self.plsc,
                             self.normalization, self.n_proc, 1,
                             self.interpolation, self.lr_mode, self.sample_type,
-                            self.random_seed)
+                            self.kss_window, self.tss_window, self.random_seed)
                     data_cpl.append(res)
                     ncplus_samples += res.shape[0]
                     print('+', end='')
@@ -683,6 +692,10 @@ class DataLabeler:
             elif self.sample_type in ('pw3d', 'mlar', 'tmlar'):
                 new_rotshi_samples = np.empty((roshi_nsamples, dshape[1],
                                                dshape[2], dshape[3]))
+            elif self.sample_type == 'tmlar4d':
+                new_rotshi_samples = np.empty((roshi_nsamples, dshape[1],
+                                               dshape[2], dshape[3], dshape[4]))
+
             for j in range(roshi_nsamples):
                 neg_ang = random_state.uniform(0, 359, 1)
                 neg_ind = random_state.randint(0, half_initsamples, 1)[0]
@@ -718,7 +731,7 @@ class DataLabeler:
             # pa_mupcube = np.flip(self.pa[i], axis=0)
             pa_mupcube = self.pa[i]
 
-            if self.sample_type in ('mlar', 'tmlar'):
+            if self.sample_type in ('mlar', 'tmlar', 'tmlar4d'):
                 for d in range(len(distances)):
                     inrad = distances[d]
                     outrad = inrad + width
@@ -728,7 +741,8 @@ class DataLabeler:
                               force_klen, inrad, outrad, self.patch_size_px,
                               self.fwhm, self.normalization, 1,
                               self.interpolation, self.lr_mode,
-                              self.sample_type, self.random_seed,
+                              self.sample_type, self.kss_window,
+                              self.tss_window, self.random_seed,
                               nsamp_sep=mupcu_per_annulus)
                     res0 = res0[0]
                     print('.', end='')
@@ -920,7 +934,7 @@ class DataLabeler:
             raise RuntimeError('Execute `estimate_fluxes` before `run`')
 
         close_hdf5_files()
-        with tables.open_file('temp.hdf5', mode='w') as fileh:
+        with tables.open_file('temp.hdf5', mode='w') as fhd:
             for i in range(self.n_cubes):
                 print('\n-------')
                 print("Cube {}:".format(i + 1))
@@ -951,27 +965,32 @@ class DataLabeler:
                                   self.patch_size_px, self.fwhm,
                                   self.normalization, 1, self.interpolation,
                                   self.lr_mode, self.sample_type,
+                                  self.kss_window, self.tss_window,
                                   self.random_seed)
-                        print('-', end='')
-                        self.k_list.append(res0[1])
-                        res0 = res0[0]
 
-                        if self.sample_type in ('mlar', 'tmlar'):
-                            if i == 0 and d == 0 and res0.shape[1] < self.n_ks:
-                                self.n_ks = res0.shape[1]
-                        elif self.sample_type == 'tmlar4d':
-                            if i == 0 and d == 0 and res0.shape[2] < self.n_ks:
-                                self.n_ks = res0.shape[2]
+                        self.k_list.append(res0[1])
+                        if i == 0 and d == 0:
+                            if self.n_ks > res0[2]:
+                                msg = "Cannot grab {} Ks. Only {} available " \
+                                      "for CEVR = {}"
+                                print(msg.format(self.n_ks, res0[2],
+                                                 self.cevr_thresh))
+                            self.n_ks = res0[2]
+
+                        res0 = res0[0]
+                        n_samp_annulus = res0.shape[0]
+                        print('-', end='')
 
                         # Injecting the same number of companions to balance
                         f1 = make_mlar_samples_ann_signal
                         res1 = f1(self.cube[i], self.pa[i], self.psf[i],
-                                  res0.shape[0], self.cevr_thresh, self.n_ks,
+                                  n_samp_annulus, self.cevr_thresh, self.n_ks,
                                   force_klen, inrad, outrad, self.patch_size_px,
                                   self.flo[i][d], self.fhi[i][d], self.plsc,
                                   self.normalization, self.n_proc, 1,
                                   self.interpolation, self.lr_mode,
-                                  self.sample_type, self.random_seed)
+                                  self.sample_type, self.kss_window,
+                                  self.tss_window, self.random_seed)
                         print('+', end='')
 
                         # Saving data to HDF5 file
@@ -983,20 +1002,19 @@ class DataLabeler:
                             elif self.sample_type == 'tmlar4d':
                                 dshape = (0, res0.shape[1], res0.shape[2],
                                           res0.shape[3], res0.shape[4])
-                            data_cmin = fileh.create_earray(where=fileh.root,
-                                                            name='c_minus',
-                                                            atom=atom,
-                                                            shape=dshape)
-                            labe_cmin = fileh.create_earray(where=fileh.root,
-                                                        name='c_minus_labels',
-                                                        atom=atom, shape=(0, ))
-                            data_cpl = fileh.create_earray(where=fileh.root,
-                                                           name='c_plus',
-                                                           atom=atom,
-                                                           shape=dshape)
-                            labe_cpl = fileh.create_earray(where=fileh.root,
-                                                        name='c_plus_labels',
-                                                        atom=atom, shape=(0, ))
+                            data_cmin = fhd.create_earray(where=fhd.root,
+                                                          name='c_minus',
+                                                          atom=atom,
+                                                          shape=dshape)
+                            labe_cmin = fhd.create_earray(where=fhd.root,
+                                                          name='c_minus_labels',
+                                                          atom=atom, shape=(0,))
+                            data_cpl = fhd.create_earray(where=fhd.root,
+                                                         name='c_plus',
+                                                         atom=atom,shape=dshape)
+                            labe_cpl = fhd.create_earray(where=fhd.root,
+                                                         name='c_plus_labels',
+                                                         atom=atom, shape=(0,))
                         data_cmin.append(res0)
                         labe_cmin.append(np.zeros((res0.shape[0])))
                         data_cpl.append(res1)
@@ -1027,18 +1045,18 @@ class DataLabeler:
                     # Saving data to HDF5 file
                     if i == 0:
                         atom = tables.Atom.from_dtype(negs.dtype)
-                        data_cmin = fileh.create_earray(where=fileh.root,
-                                                        name='c_minus',
-                                                        atom=atom, shape=dshape)
-                        labe_cmin = fileh.create_earray(where=fileh.root,
-                                                        name='c_minus_labels',
-                                                        atom=atom, shape=(0,))
-                        data_cpl = fileh.create_earray(where=fileh.root,
-                                                       name='c_plus',
-                                                       atom=atom, shape=dshape)
-                        labe_cpl = fileh.create_earray(where=fileh.root,
-                                                       name='c_plus_labels',
-                                                       atom=atom, shape=(0,))
+                        data_cmin = fhd.create_earray(where=fhd.root,
+                                                      name='c_minus', atom=atom,
+                                                      shape=dshape)
+                        labe_cmin = fhd.create_earray(where=fhd.root,
+                                                      name='c_minus_labels',
+                                                      atom=atom, shape=(0,))
+                        data_cpl = fhd.create_earray(where=fhd.root,
+                                                     name='c_plus', atom=atom,
+                                                     shape=dshape)
+                        labe_cpl = fhd.create_earray(where=fhd.root,
+                                                     name='c_plus_labels',
+                                                     atom=atom, shape=(0,))
                     data_cmin.append(negs)
                     labe_cmin.append(np.zeros((negs.shape[0])))
                     del negs
@@ -1063,8 +1081,8 @@ class DataLabeler:
                 else:
                     raise ValueError('sample_type not recognized')
 
-            cmin_shape = fileh.root.c_plus.shape
-            cplu_shape = fileh.root.c_minus.shape
+            cmin_shape = fhd.root.c_plus.shape
+            cplu_shape = fhd.root.c_minus.shape
             self.n_init_samples = int(cmin_shape[0] + cplu_shape[0])
             msg = "\nShape of C+ samples array: {}"
             print(msg.format(cmin_shape))
@@ -1073,10 +1091,10 @@ class DataLabeler:
             msg = "Total number of samples: {}"
             print(msg.format(self.n_init_samples))
 
-            self.x_plus = np.array(fileh.root.c_plus, dtype='float32')
-            self.x_minus = np.array(fileh.root.c_minus, dtype='float32')
-            self.y_plus = np.array(fileh.root.c_plus_labels, dtype='float32')
-            self.y_minus = np.array(fileh.root.c_minus_labels, dtype='float32')
+            self.x_plus = np.array(fhd.root.c_plus, dtype='float32')
+            self.x_minus = np.array(fhd.root.c_minus, dtype='float32')
+            self.y_plus = np.array(fhd.root.c_plus_labels, dtype='float32')
+            self.y_minus = np.array(fhd.root.c_minus_labels, dtype='float32')
 
             self.runtime = time_fin(starttime)
             if self.save_filename_labdata is not None:
@@ -1159,6 +1177,22 @@ class DataLabeler:
         fh5r = fh5.root
 
         identifier = int(str(fh5r.labda_identifier[0].decode()).split('v')[-1])
+        # dir_path = str(fh5r.dir_path[0].decode())
+        dir_path = str(fh5r.save_filename_labdata[0].decode()).split('labda')[0]
+
+        try:
+            kss_window = fh5r.kss_window.read()
+            if not isinstance(kss_window, int):
+                kss_window = None
+        except:
+            kss_window = None
+        try:
+            tss_window = fh5r.tss_window.read()
+            if not isinstance(tss_window, int):
+                tss_window = None
+        except:
+            tss_window = None
+
         obj = cls(sample_type=str(fh5r.sample_type[0].decode()),
                   cube=np.array(fh5r.cube),
                   pa=np.array(fh5r.pa), psf=np.array(fh5r.psf),
@@ -1173,13 +1207,13 @@ class DataLabeler:
                   min_adi_snr=fh5r.min_adi_snr.read(),
                   max_adi_snr=fh5r.max_adi_snr.read(),
                   cevr_thresh=fh5r.cevr_thresh.read(), n_ks=fh5r.n_ks.read(),
+                  kss_window=kss_window, tss_window=tss_window,
                   lr_mode=str(fh5r.lr_mode[0].decode()),
                   imlib=str(fh5r.imlib[0].decode()),
                   interpolation=str(fh5r.interpolation[0].decode()),
                   n_proc=fh5r.n_proc.read(),
                   random_seed=fh5r.random_seed.read(), identifier=identifier,
-                  dir_path=str(fh5r.save_filename_labdata[0].decode()),
-                  reload=True)
+                  dir_path=dir_path, reload=True)
 
         obj.augmented = fh5r.augmented.read()
         if hasattr(fh5r, 'cubehp'):
@@ -1291,7 +1325,25 @@ def _rotations_and_shifts(array, ang, samp_dim, border_mode, shift_amplitude,
     """
     """
     random_state = np.random.RandomState(random_seed)
-    if samp_dim == 3:
+    if samp_dim == 4:
+        n_slices = array.shape[0]
+        ang = ang * np.ones(n_slices)
+        samp_rot = []
+
+        for i in range(n_slices):
+            slice3drot = cube_derotate(array[i], ang, imlib=imlib,
+                                       interpolation=interpolation,
+                                       border_mode=border_mode)
+            if shift_amplitude is not None:
+                # random shift pixels in x and y
+                shy = random_state.uniform(-shift_amplitude, shift_amplitude, 1)
+                shx = random_state.uniform(-shift_amplitude, shift_amplitude, 1)
+                slice3drot = cube_shift(slice3drot, shy, shx, imlib,
+                                        interpolation, border_mode=border_mode)
+            samp_rot.append(slice3drot)
+        samp_rot = np.array(samp_rot)
+
+    elif samp_dim == 3:
         n_slices = array.shape[0]
         ang = ang * np.ones(n_slices)
         samp_rot = cube_derotate(array, ang, imlib=imlib,
