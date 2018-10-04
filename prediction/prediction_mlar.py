@@ -14,13 +14,14 @@ from vip_hci.var import (pp_subplots as plots,
                          frame_center, dist, cube_filter_highpass,
                          get_annulus_segments)
 from vip_hci.conf.utils_conf import (pool_map, fixed, make_chunks)
-from ..utils import normalize_01, create_feature_matrix
+from ..utils import normalize_01, create_feature_matrix, cube_move_subsample
 from ..data_labeling import svd_decomp, get_cumexpvar
 
 
 def predict_mlar(mode, model, cube, angle_list, fwhm, in_ann, out_ann,
-                 patch_size, cevr_thresh, n_ks, normalize='slice',
-                 lr_mode='eigen', n_proc=20, verbose=False):
+                 patch_size, cevr_thresh, n_ks, kss_window=None,
+                 tss_window=None, normalize='slice', lr_mode='eigen', n_proc=20,
+                 verbose=False):
     """
     """
     global GARRAY
@@ -49,6 +50,22 @@ def predict_mlar(mode, model, cube, angle_list, fwhm, in_ann, out_ann,
     patches = np.vstack(patches)
     coords = np.vstack(coords)
 
+    # Moving-subsampling
+    move_subsampling = 'mean'
+    if mode == 'mlar' and kss_window is not None:
+        patches = cube_move_subsample(patches, kss_window, axis=1,
+                                      mode=move_subsampling)
+    elif mode == 'tmlar' and tss_window is not None:
+        patches = cube_move_subsample(patches, kss_window, axis=1,
+                                      mode=move_subsampling)
+    elif mode == 'tmlar4d':
+        if tss_window is not None:
+            patches = cube_move_subsample(patches, tss_window, axis=1,
+                                          mode=move_subsampling)
+        if kss_window is not None:
+            patches = cube_move_subsample(patches, kss_window, axis=2,
+                                          mode=move_subsampling)
+
     if verbose:
         timing(starttime)
         print('Generating a prediction on each MLAR/TMLAR/TMLAR4D sample')
@@ -67,9 +84,10 @@ def predict_mlar(mode, model, cube, angle_list, fwhm, in_ann, out_ann,
             # adding extra dimension (channel) for TF/Keras model
             patches = np.expand_dims(patches, -1)
             if mode == 'tmlar4d':
-                # patches = [patches[:, :, k] for k in range(n_ks)]
                 patches = list(np.moveaxis(patches, 2, 0))
             probas = model.predict(patches, verbose=verbose)
+            if mode == 'tmlar4d':
+                patches = np.moveaxis(np.array(patches), 0, 2)
 
         elif flayer_name == 'conv2d_layer1':
             ntotal = patches.shape[0]

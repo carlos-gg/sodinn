@@ -74,6 +74,8 @@ class Predictor:
         self.min_n_slices = deepcopy(labeled_data.min_n_slices)
         self.cevr_thresh = deepcopy(labeled_data.cevr_thresh)
         self.n_ks = deepcopy(labeled_data.n_ks)
+        self.kss_window = deepcopy(labeled_data.kss_window)
+        self.tss_window = deepcopy(labeled_data.tss_window)
         self.lr_mode = deepcopy(labeled_data.lr_mode)
         self.imlib = deepcopy(labeled_data.imlib)
         self.interpolation = deepcopy(labeled_data.interpolation)
@@ -278,8 +280,13 @@ class Predictor:
         print("Proba : " + str(prob))
         sample = np.squeeze(self.patches[index])
         max_slices = sample.shape[0]
-        pp_subplots(sample, maxplots=max_slices, axis=False, colorb=False,
-                    cmap=cmap, dpi=dpi, horsp=0.05)
+        if self.sample_type == 'tmlar4d':
+            for i in range(sample.shape[1]):
+                pp_subplots(sample[:, i], maxplots=max_slices, axis=False,
+                            colorb=False, cmap=cmap, dpi=dpi, horsp=0.05)
+        else:
+            pp_subplots(sample, maxplots=max_slices, axis=False, colorb=False,
+                        cmap=cmap, dpi=dpi, horsp=0.05)
 
     def inspect_probmap(self, vmin_log=1e-10, labelsize=10, circlerad=10,
                         circlecolor='white', circlealpha=0.6, grid=True,
@@ -355,6 +362,8 @@ class Predictor:
                                in_ann=radint_fwhm, out_ann=radout_fwhm,
                                patch_size=self.patch_size_px,
                                cevr_thresh=self.cevr_thresh, n_ks=self.n_ks,
+                               kss_window=self.kss_window,
+                               tss_window=self.tss_window,
                                normalize=self.normalization, n_proc=n_proc,
                                verbose=verbose, lr_mode=self.lr_mode)
             pmap = res[0]
