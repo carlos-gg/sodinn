@@ -410,7 +410,7 @@ class DataLabeler:
         # flux_min = np.linspace(flux_min[0], flux_min[1], ndist)
         radprof = np.array(me.radprof[:ndist])
         flux_min = radprof * 0.1
-        flux_min[flux_min < 1] = 1
+        flux_min[flux_min < 0] = 0.1
         # varadprof = np.array(var.radprof[:ndist])
         fwhm = copy.copy(self.fwhm)
         plsc = copy.copy(self.plsc)
