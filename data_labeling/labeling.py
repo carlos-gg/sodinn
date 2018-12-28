@@ -18,18 +18,18 @@ from sklearn.svm import SVR
 from sklearn.preprocessing import PolynomialFeatures
 from sklearn.neural_network import MLPRegressor
 from vip_hci.conf import time_ini, timing, time_fin
-from vip_hci.var import frame_center
+from vip_hci.var import frame_center, prepare_matrix
 from vip_hci.stats import frame_average_radprofile
 from vip_hci.conf.utils_conf import (pool_map, fixed, make_chunks)
 from vip_hci.var import cube_filter_highpass, pp_subplots, get_annulus_segments
 from vip_hci.metrics import cube_inject_companions
 from vip_hci.preproc import (check_pa_vector, cube_derotate, cube_crop_frames,
                              frame_rotate, frame_shift, frame_px_resampling,
-                             frame_crop)
+                             frame_crop, cube_collapse)
 from vip_hci.preproc.derotation import _compute_pa_thresh, _find_indices_adi
 from vip_hci.metrics import frame_quick_report
 from vip_hci.medsub import median_sub
-from vip_hci.pca import pca
+from vip_hci.pca import pca, svd_wrapper
 from .mlar_samples import (make_mlar_samples_ann_noise,
                            make_mlar_samples_ann_signal)
 from ..utils import (normalize_01_pw, cube_shift, create_synt_cube,
@@ -1442,9 +1442,45 @@ def _sample_flux_snr(distances, fwhm, plsc, n_injections, flux_min, flux_max,
     return fluxes_list, snrs_list
 
 
-def _get_adi_snrs(psf, angle_list, fwhm, plsc, flux_dist_theta_all):
+def _compute_residual_frame(cube, angle_list, radius, fwhm, mode='pca', ncomp=2,
+                            svd_mode='lapack', scaling=None, collapse='median',
+                            imlib='opencv', interpolation='lanczos4'):
+    """
+    """
+    if cube.ndim == 3:
+        if mode == 'pca':
+            annulus_width = 3 * fwhm
+            data, ind = prepare_matrix(cube, scaling, mode='annular',
+                                       annulus_radius=radius, verbose=False,
+                                       annulus_width=annulus_width)
+            yy, xx = ind
+            V = svd_wrapper(data, svd_mode, ncomp, False, False)
+            transformed = np.dot(V, data.T)
+            reconstructed = np.dot(transformed.T, V)
+            residuals = data - reconstructed
+            cube_empty = np.zeros_like(cube)
+            cube_empty[:, yy, xx] = residuals
+            cube_res_der = cube_derotate(cube_empty, angle_list, imlib=imlib,
+                                         interpolation=interpolation)
+            res_frame = cube_collapse(cube_res_der, mode=collapse)
+
+        elif mode == 'median':
+            res_frame = median_sub(cube, angle_list, verbose=False)
+
+    elif cube.ndim == 4:
+        if mode == 'pca':
+            pass
+
+        elif mode == 'median':
+            res_frame = median_sub(cube, angle_list, verbose=False)
+
+    return res_frame
+
+
+def _get_adi_snrs(psf, angle_list, fwhm, plsc, flux_dist_theta_all, mode,
+                  ncomp):
     """ Get the mean S/N (at 3 equidistant positions) for a given flux and
-    distance, on a median subtracted frame.
+    distance, on a median/PCA subtracted frame.
     """
     snrs = []
     theta = flux_dist_theta_all[2]
@@ -1456,7 +1492,11 @@ def _get_adi_snrs(psf, angle_list, fwhm, plsc, flux_dist_theta_all):
         cube_fc, cx, cy = create_synt_cube(GARRAY, psf, angle_list, plsc,
                                            flux=flux, dist=dist, theta=ang,
                                            verbose=False)
-        fr_temp = median_sub(cube_fc, angle_list, verbose=False)
+        fr_temp = _compute_residual_frame(cube_fc, angle_list, dist, fwhm,
+                                          mode, ncomp, svd_mode='lapack',
+                                          scaling=None, collapse='median',
+                                          imlib='opencv',
+                                          interpolation='lanczos4')
         res = frame_quick_report(fr_temp, fwhm, source_xy=(cx, cy),
                                  verbose=False)
         # mean S/N in circular aperture
