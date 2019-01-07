@@ -1507,6 +1507,7 @@ def _get_adi_snrs(psf, angle_list, fwhm, plsc, flux_dist_theta_all, mode,
     return flux, median_snr
 
 
+# TODO: pass the psf subtraction method to _get_adi_snrs and tests
 def _get_max_flux(i, distances, radprof, fwhm, plsc, max_adi_snr):
     """
     """
