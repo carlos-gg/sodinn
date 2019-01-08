@@ -1507,8 +1507,9 @@ def _get_adi_snrs(psf, angle_list, fwhm, plsc, flux_dist_theta_all, mode,
     return flux, median_snr
 
 
-# TODO: pass the psf subtraction method to _get_adi_snrs and tests
-def _get_max_flux(i, distances, radprof, fwhm, plsc, max_adi_snr):
+# TODO: Propagate mode, ncomp. Rename max_adi_snr
+def _get_max_flux(i, distances, radprof, fwhm, plsc, max_snr, mode='pca',
+                  ncomp=2):
     """
     """
     d = distances[i]
@@ -1517,8 +1518,9 @@ def _get_max_flux(i, distances, radprof, fwhm, plsc, max_adi_snr):
     snrs = []
     counter = 1
 
-    while snr < 1.2 * max_adi_snr:
-        f, snr = _get_adi_snrs(GARRPSF, GARRPA, fwhm, plsc, (flux, d, 0))
+    while snr < 1.2 * max_snr:
+        f, snr = _get_adi_snrs(GARRPSF, GARRPA, fwhm, plsc, (flux, d, 0),
+                               mode, ncomp)
         if counter > 2 and snr <= snrs[-1]:
             break
         snrs.append(snr)
@@ -1526,3 +1528,5 @@ def _get_max_flux(i, distances, radprof, fwhm, plsc, max_adi_snr):
         counter += 1
 
     return flux
+
+
