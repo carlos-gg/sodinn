@@ -5,7 +5,7 @@ discriminative models.
 from __future__ import print_function, division, absolute_import
 
 import cupy
-import torch
+# import torch
 import numpy as np
 from vip_hci.preproc import cube_derotate, cube_crop_frames, cube_derotate
 from vip_hci.var import (get_annulus_segments, reshape_matrix, prepare_matrix,
@@ -317,12 +317,12 @@ def svd_decomp(array, angle_list, size_patch, inrad, outrad, sca, k_list,
             reconstructed = cupy.dot(transformed.T, V[:k])
             residuals_ann = matrix - reconstructed
             residuals_ann = cupy.asnumpy(residuals_ann)
-        elif lr_mode in ['pytorch', 'randpytorch', 'eigenpytorch']:
-            matrix = matrix.astype('float32')
-            matrix_gpu = torch.Tensor.cuda(torch.from_numpy(matrix))
-            transformed = torch.mm(V[:k], torch.transpose(matrix_gpu, 0, 1))
-            reconstructed = torch.mm(torch.transpose(transformed, 0, 1), V[:k])
-            residuals_ann = matrix_gpu - reconstructed
+        # elif lr_mode in ['pytorch', 'randpytorch', 'eigenpytorch']:
+        #     matrix = matrix.astype('float32')
+        #     matrix_gpu = torch.Tensor.cuda(torch.from_numpy(matrix))
+        #     transformed = torch.mm(V[:k], torch.transpose(matrix_gpu, 0, 1))
+        #     reconstructed = torch.mm(torch.transpose(transformed, 0, 1), V[:k])
+        #     residuals_ann = matrix_gpu - reconstructed
         else:
             transformed = np.dot(V[:k], matrix.T)
             reconstructed = np.dot(transformed.T, V[:k])
