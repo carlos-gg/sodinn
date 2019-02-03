@@ -7,19 +7,11 @@ from __future__ import print_function, division, absolute_import
 __all__ = ['DataLabeler']
 
 import os
-import dill
 import tables
 import copy
 import numpy as np
-from matplotlib import pyplot as plt
-from scipy import interpolate
-from sklearn.linear_model import LinearRegression
-from sklearn.svm import SVR
-from sklearn.preprocessing import PolynomialFeatures
-from sklearn.neural_network import MLPRegressor
 from vip_hci.conf import time_ini, timing, time_fin
 from vip_hci.var import frame_center, prepare_matrix
-from vip_hci.stats import frame_average_radprofile
 from vip_hci.conf.utils_conf import (pool_map, fixed, make_chunks)
 from vip_hci.var import cube_filter_highpass, pp_subplots, get_annulus_segments
 from vip_hci.metrics import cube_inject_companions
@@ -34,6 +26,7 @@ from .mlar_samples import (make_mlar_samples_ann_noise,
                            make_mlar_samples_ann_signal)
 from ..utils import (normalize_01_pw, cube_shift, create_synt_cube,
                      close_hdf5_files)
+from .flux_estimation import FluxEstimator
 
 
 class DataLabeler:
@@ -42,7 +35,7 @@ class DataLabeler:
     def __init__(self, sample_type, cube, pa, psf, radius_int=None,
                  fwhm=4, plsc=0.01, delta_rot=0.5, patch_size=4, slice3d=True,
                  high_pass='laplacian', kernel_size=5, normalization='slice',
-                 min_adi_snr=1, max_adi_snr=3, cevr_thresh=0.99, n_ks=20,
+                 min_snr=1, max_snr=3, cevr_thresh=0.99, n_ks=20,
                  kss_window=None, tss_window=None, lr_mode='eigen',
                  imlib='opencv', interpolation='bilinear', n_proc=1,
                  random_seed=42, identifier=1, dir_path=None, reload=False):
@@ -173,8 +166,8 @@ class DataLabeler:
         self.kss_window = kss_window
         self.tss_window = tss_window
         self.lr_mode = lr_mode
-        self.min_adi_snr = min_adi_snr
-        self.max_adi_snr = max_adi_snr
+        self.min_adi_snr = min_snr
+        self.max_adi_snr = max_snr
         self.random_seed = random_seed
         self.runtime = None
         self.augmented = False
@@ -250,180 +243,6 @@ class DataLabeler:
         print(dist)
 
         return dist
-
-    def _estimate_fluxes(self, radprof, fluxes_list, snrs_list, kernel='rbf',
-                         epsilon=0.1, c=1e4, gamma=1e-2, figsize=(10, 5),
-                         dpi=100, **kwargs):
-        """ Automatic estimation of the scaling factors for injecting the
-        companions (brightness or contrast of fake companions).
-
-        Epsilon-Support Vector Regression (important parameters in the model are
-        C and epsilon). The implementation is based on scikit-learn (libsvm).
-
-        Parameters
-        ----------
-        C : float, optional (default=1.0)
-            Penalty parameter C of the error term.
-        epsilon : float, optional (default=0.1)
-            Epsilon in the epsilon-SVR model. It specifies the epsilon-tube
-            within which no penalty is associated in the training loss function
-            with points predicted within a distance epsilon from the actual
-            value.
-        kernel : string, optional (default=’rbf’)
-            Specifies the kernel type to be used in the algorithm. It must be
-            one of ‘linear’, ‘poly’, ‘rbf’, ‘sigmoid’, ‘precomputed’ or a
-            callable. If none is given, ‘rbf’ will be used. If a callable is
-            given it is used to precompute the kernel matrix.
-        gamma : float, optional (default=’auto’)
-            Kernel coefficient for ‘rbf’, ‘poly’ and ‘sigmoid’. If gamma is
-            ‘auto’ then 1/n_features will be used instead.
-        """
-        print("\nEstimating the flux for the given S/N thresholds (regression)")
-        starttime = time_ini()
-
-        if self.sample_type in ('pw2d', 'pw3d'):
-            cy, cx = frame_center(GARRAY[0])
-            sampling_sep = int(round(self.fwhm))
-            max_rad = cy - (self.patch_size_px * 2 + sampling_sep)
-            n_annuli = int(max_rad / sampling_sep)
-            distances_init = GARRDIST
-            distances = [int(self.radius_int + i * sampling_sep) for i
-                         in range(n_annuli)]
-        else:
-            distances = GARRDIST
-
-        min_adi_snr = self.min_adi_snr
-        max_adi_snr = self.max_adi_snr
-        plotvlines = [min_adi_snr, max_adi_snr]
-        nsubplots = len(distances)
-        if nsubplots % 2 != 0:
-            nsubplots -= 1
-        ncols = 4
-        nrows = int(nsubplots / ncols) + 1
-
-        fig, axs = plt.subplots(nrows, ncols, figsize=figsize, dpi=dpi,
-                                sharey='row')
-        fig.subplots_adjust(wspace=0.05, hspace=0.3)
-        axs = axs.ravel()
-        fhi = list()
-        flo = list()
-
-        # Regression for each distance
-        for i, d in enumerate(distances):
-            fluxes = np.array(fluxes_list[i])
-            snrs = np.array(snrs_list[i])
-            mask = np.where(snrs > 0.1)
-            snrs = snrs[mask].reshape(-1, 1)
-            fluxes = fluxes[mask].reshape(-1, 1)
-
-            model = SVR(kernel=kernel, epsilon=epsilon, C=c, gamma=gamma,
-                        **kwargs)
-            model.fit(X=snrs, y=fluxes)
-            flux_for_lowsnr = model.predict(min_adi_snr)
-            flux_for_higsnr = model.predict(max_adi_snr)
-            fhi.append(flux_for_higsnr[0])
-            flo.append(flux_for_lowsnr[0])
-            snrminp = min_adi_snr / 2
-            snrs_pred = np.linspace(snrminp, max_adi_snr + snrminp,
-                                    num=50).reshape(-1, 1)
-            fluxes_pred = model.predict(snrs_pred)
-
-            # Figure of flux vs s/n
-            axs[i].xaxis.set_tick_params(labelsize=6)
-            axs[i].yaxis.set_tick_params(labelsize=6)
-            axs[i].plot(fluxes, snrs, '.', alpha=0.2, markersize=4)
-            axs[i].plot(fluxes_pred, snrs_pred, '-', alpha=0.99,
-                        label='S/N regression model', color='orangered')
-            axs[i].grid(which='major', alpha=0.3)
-            axs[i].legend(fontsize=6)
-            for l in plotvlines:
-                axs[i].plot((0, max(fluxes)), (l, l), ':', color='darksalmon')
-            ax0 = fig.add_subplot(111, frame_on=False)
-            ax0.set_xticks([])
-            ax0.set_yticks([])
-            ax0.set_xlabel('Fakecomp flux scaling [Counts]', labelpad=25,
-                           size=8)
-            ax0.set_ylabel('ADI-medsub median S/N (3 equidist. angles)',
-                           labelpad=25, size=8)
-
-        for i in range(len(distances), len(axs)):
-            axs[i].axis('off')
-
-        timing(starttime)
-
-        flo = np.array(flo).flatten()
-        fhi = np.array(fhi).flatten()
-
-        if self.sample_type in ('pw2d', 'pw3d'):
-            x = distances
-            f1 = interpolate.interp1d(x, flo, fill_value='extrapolate')
-            f2 = interpolate.interp1d(x, fhi, fill_value='extrapolate')
-            fhi = f2(distances_init)
-            flo = f1(distances_init)
-
-        plt.figure(figsize=(10, 4), dpi=dpi)
-        plt.plot(distances, radprof, '--', alpha=0.8, color='gray', lw=2,
-                 label='average radial profile')
-        if self.sample_type in ('mlar', 'tmlar', 'tmlar4d'):
-            distplot = distances
-        elif self.sample_type in ('pw2d', 'pw3d'):
-            distplot = distances_init
-        plt.plot(distplot, flo, '.-', alpha=0.6, lw=2, color='dodgerblue',
-                 label='flux lower interval')
-        plt.plot(distplot, fhi, '.-', alpha=0.6, color='dodgerblue', lw=2,
-                 label='flux upper interval')
-        plt.fill_between(distplot, flo, fhi, where=flo <= fhi, alpha=0.2,
-                         facecolor='dodgerblue', interpolate=True)
-        plt.grid(which='major', alpha=0.4)
-        plt.xlabel('Distance from the center [Pixels]')
-        plt.ylabel('Fakecomp flux scaling [Counts]')
-        plt.minorticks_on()
-        plt.xlim(0)
-        plt.ylim(0)
-        plt.legend()
-        plt.show()
-        return flo, fhi
-
-    def _sample_flux_snr(self, n_injections, n_proc):
-        """
-        """
-        if self.sample_type in ('mlar', 'tmlar', 'tmlar4d'):
-            sampling_sep = self.sampling_sep
-            distances = GARRDIST
-        elif self.sample_type in ('pw2d', 'pw3d'):
-            cy, cx = frame_center(GARRAY[0])
-            sampling_sep = int(round(self.fwhm))
-            max_rad = cy - (self.patch_size_px * 2 + sampling_sep)
-            n_annuli = int(max_rad / sampling_sep)
-            distances = [int(self.radius_int + i * sampling_sep) for i
-                         in range(n_annuli)]
-
-        me = frame_average_radprofile(np.mean(GARRAY, axis=0), sep=sampling_sep,
-                                      init_rad=self.radius_int, plot=False)
-        # var = frame_average_radprofile(np.var(GARRAY, axis=0),
-        #                               sep=sampling_sep,
-        #                               init_rad=self.radius_int, plot=False)
-        print('\nSampling the flux-S/N relationship for each separation:')
-        ndist = len(distances)
-        # flux_max = np.linspace(flux_max[0] + self.max_adi_snr,
-        #                        flux_max[1] + self.max_adi_snr, ndist)
-        # flux_min = np.linspace(flux_min[0], flux_min[1], ndist)
-        radprof = np.array(me.radprof[:ndist])
-        flux_min = radprof * 0.1
-        flux_min[flux_min < 0] = 0.1
-        # varadprof = np.array(var.radprof[:ndist])
-        fwhm = copy.copy(self.fwhm)
-        plsc = copy.copy(self.plsc)
-        flux_max = pool_map(n_proc, _get_max_flux, fixed(range(len(distances))),
-                            distances, radprof, fwhm, plsc, self.max_adi_snr)
-        flux_max = np.array(flux_max)
-        random_seed = copy.copy(self.random_seed)
-        fluxes_list, snrs_list = _sample_flux_snr(distances, fwhm, plsc,
-                                                  n_injections, flux_min,
-                                                  flux_max, n_proc, random_seed)
-        self.fluxes_list.append(fluxes_list)
-        self.snrs_list.append(snrs_list)
-        self.radprof.append(radprof)
 
     def _make_andro_samples_ann_noise(self, cube_index, dist, n_iter=None,
                                       cube=None, pa=None):
@@ -893,9 +712,12 @@ class DataLabeler:
                         axis=False, horsp=0.05, colorb=False, cmap=cmap,
                         **kwargs)
 
-    def estimate_fluxes(self, n_injections=100, kernel='rbf', epsilon=0.1,
-                        c=1e5, gamma=1e-2, n_proc=None, figsize=(10, 5),
-                        dpi=100, **kwargs):
+    # def estimate_fluxes(self, n_injections=100, kernel='rbf', epsilon=0.1,
+    #                     c=1e5, gamma=1e-2, n_proc=None, figsize=(10, 5),
+    #                     dpi=100, **kwargs):
+    def estimate_fluxes(self, algo='pca', n_injections=100, kernel='rbf',
+                        epsilon=0.1, c=1e4, gamma=1e-2, n_proc=None,
+                        figsize=(10, 5), dpi=100, **kwargs):
         """
         """
         if n_proc is None:
@@ -915,14 +737,38 @@ class DataLabeler:
             GARRDIST = np.array(self.distances[i])
 
             if len(self.snrs_list) < i + 1:
-                self._sample_flux_snr(n_injections, n_proc)
+                if self.sample_type in ('mlar', 'tmlar', 'tmlar4d'):
+                    distances = GARRDIST
+                    inter_extrap = False
+                elif self.sample_type in ('pw2d', 'pw3d'):
+                    cy, cx = frame_center(GARRAY[0])
+                    sampling_sep = int(round(self.fwhm))
+                    max_rad = cy - (self.patch_size_px * 2 + sampling_sep)
+                    n_annuli = int(max_rad / sampling_sep)
+                    # same distances as with the mlar case
+                    distances = [int(self.radius_int + i * sampling_sep) for i
+                                 in range(n_annuli)]
+                    inter_extrap = True
 
-            flo, fhi = self._estimate_fluxes(self.radprof[i],
-                                             self.fluxes_list[i],
-                                             self.snrs_list[i], kernel, epsilon,
-                                             c, gamma, figsize, dpi, **kwargs)
-            self.flo.append(flo)
-            self.fhi.append(fhi)
+                fluxest = FluxEstimator(GARRAY, GARRPSF, distances, GARRPA,
+                                        self.fwhm, self.plsc, wavelengths=None,
+                                        n_injections=n_injections,
+                                        algo=algo, min_snr=self.min_adi_snr,
+                                        max_snr=self.max_adi_snr,
+                                        inter_extrap=inter_extrap,
+                                        inter_extrap_dist=GARRDIST,
+                                        random_seed=self.random_seed,
+                                        n_proc=n_proc)
+                fluxest.sampling()
+                self.fluxes_list.append(fluxest.fluxes_list)
+                self.snrs_list.append(fluxest.snrs_list)
+                self.radprof.append(fluxest.radprof)
+
+            fluxest.run(kernel=kernel, epsilon=epsilon, c=c, gamma=gamma,
+                        figsize=figsize, dpi=dpi, **kwargs)
+
+            self.flo.append(fluxest.estimated_fluxes_low)
+            self.fhi.append(fluxest.estimated_fluxes_high)
             print('\n')
 
     def run(self):
@@ -1506,27 +1352,5 @@ def _get_adi_snrs(psf, angle_list, fwhm, plsc, flux_dist_theta_all, mode,
     median_snr = np.median(snrs)
     return flux, median_snr
 
-
-# TODO: Propagate mode, ncomp. Rename max_adi_snr
-def _get_max_flux(i, distances, radprof, fwhm, plsc, max_snr, mode='pca',
-                  ncomp=2):
-    """
-    """
-    d = distances[i]
-    snr = 0.01
-    flux = radprof[i]
-    snrs = []
-    counter = 1
-
-    while snr < 1.2 * max_snr:
-        f, snr = _get_adi_snrs(GARRPSF, GARRPA, fwhm, plsc, (flux, d, 0),
-                               mode, ncomp)
-        if counter > 2 and snr <= snrs[-1]:
-            break
-        snrs.append(snr)
-        flux *= 2
-        counter += 1
-
-    return flux
 
 
