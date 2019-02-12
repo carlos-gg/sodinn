@@ -842,7 +842,7 @@ class DataLabeler:
                         # Saving data to HDF5 file
                         if i == 0 and d == 0:
                             atom = tables.Atom.from_dtype(res0.dtype)
-                            if self.sample_type in ('malr', 'tmlar'):
+                            if self.sample_type in ('mlar', 'tmlar'):
                                 dshape = (0, res0.shape[1], res0.shape[2],
                                           res0.shape[3])
                             elif self.sample_type == 'tmlar4d':
