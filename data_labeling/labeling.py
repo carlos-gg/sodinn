@@ -218,7 +218,7 @@ class DataLabeler:
         self.n_aug_aver = -1
         self.n_aug_rotshi = -1
         self.n_aug_mupcu = -1
-        self.k_list = None
+        self.k_list = []
         self.fluxes_list = []
         self.snrs_list = []
         self.radprof = []
