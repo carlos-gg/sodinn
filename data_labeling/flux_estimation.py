@@ -5,13 +5,9 @@ from __future__ import print_function, division, absolute_import
 
 __all__ = ['FluxEstimator']
 
-import os
-import tables
-import copy
 import numpy as np
 from matplotlib import pyplot as plt
 from scipy import interpolate
-from sklearn.linear_model import LinearRegression
 from sklearn.svm import SVR
 from vip_hci.conf import time_ini, timing, time_fin
 from vip_hci.var import frame_center
@@ -25,7 +21,6 @@ from vip_hci.preproc import (check_pa_vector, cube_derotate, cube_crop_frames,
                              frame_crop, cube_collapse, check_pa_vector,
                              check_scal_vector)
 from vip_hci.preproc import cube_rescaling_wavelengths as scwave
-from vip_hci.preproc.derotation import _compute_pa_thresh, _find_indices_adi
 from vip_hci.metrics import frame_quick_report
 from vip_hci.medsub import median_sub
 from vip_hci.pca import pca, svd_wrapper
@@ -190,7 +185,7 @@ class FluxEstimator:
         timing(starttime)
 
     def run(self, kernel='rbf', epsilon=1e-1, c=1e4, gamma=1e-2,
-            figsize=(10, 2), dpi=100, **kwargs):
+            dpi=100, **kwargs):
         """ Building a regression model with he sampled fluxes and SNRs.
 
         Epsilon-Support Vector Regression (important parameters in the model are
@@ -213,9 +208,6 @@ class FluxEstimator:
         gamma : float, optional (default=’auto’)
             Kernel coefficient for ‘rbf’, ‘poly’ and ‘sigmoid’. If gamma is
             ‘auto’ then 1/n_features will be used instead.
-        figsize : tuple, optional
-            Size of the figure with the sampled fluxes and SNRs and the computed
-            SVM model.
         dpi : int, optional
             DPI of the figures.
         """
@@ -232,12 +224,17 @@ class FluxEstimator:
             nsubplots -= 1
 
         if nsubplots < 3:
+            figsize = (10, 2)
             if nsubplots == 2:
                 figsizex = figsize[0] * 0.66
             elif nsubplots == 1:
                 figsizex = figsize[0] * 0.33
             nrows = 1
         else:
+            if nsubplots <= 8:
+                figsize = (10, 4)
+            else:
+                figsize = (10, 6)
             figsizex = figsize[0]
             nrows = int(nsubplots / ncols) + 1
 
@@ -342,9 +339,9 @@ def _get_min_flux(i, distances, radprof, fwhm, plsc, min_snr, wavelengths=None,
     d = distances[i]
     fmin = radprof[i] * 0.1
     random_state = np.random.RandomState(random_seed)
-    theta = random_state.randint(0, 360)
-    n_ks = 3
-    _, snr = _get_adi_snrs(GARRPSF, GARRPA, fwhm, plsc, (fmin, d, theta),
+    n_ks = 1
+    theta_init = random_state.randint(0, 360)
+    _, snr = _get_adi_snrs(GARRPSF, GARRPA, fwhm, plsc, (fmin, d, theta_init),
                            wavelengths, mode, n_ks, scaling)
 
     while snr > min_snr:
@@ -352,9 +349,6 @@ def _get_min_flux(i, distances, radprof, fwhm, plsc, min_snr, wavelengths=None,
         f, snr = _get_adi_snrs(GARRPSF, GARRPA, fwhm, plsc, (fmin, d, theta),
                                wavelengths, mode, n_ks, scaling)
         fmin *= 0.5
-
-        # DEBUG
-        # print(fmin, snr)
 
     return fmin
 
@@ -369,8 +363,7 @@ def _get_max_flux(i, distances, flux_min, fwhm, plsc, max_snr, wavelengths=None,
     snrs = []
     counter = 1
     random_state = np.random.RandomState(random_seed)
-    theta = random_state.randint(0, 360)
-    n_ks = 3
+    n_ks = 1
 
     while snr < max_snr:
         theta = random_state.randint(0, 360)
@@ -378,15 +371,13 @@ def _get_max_flux(i, distances, flux_min, fwhm, plsc, max_snr, wavelengths=None,
                                wavelengths, mode, n_ks, scaling)
 
         # checking that the snr does not decrease
-        if snr > max_snr and (counter > 2 and snr <= snrs[-1]):
+        if counter > 3 and snr <= snrs[-1]:
+            print('Breaking... could not reach the max_snr value')
             break
 
         snrs.append(snr)
-        flux *= 1.2
+        flux *= 2
         counter += 1
-
-        # DEBUG
-        # print(flux, snr)
 
     return flux
 
@@ -425,6 +416,7 @@ def _sample_flux_snr(distances, fwhm, plsc, n_injections, flux_min, flux_max,
             theta = np.mod(np.arctan2(injy, injx) / np.pi * 180, 360)
             flux_dist_theta_all.append((fluxes_dist[j], dist, theta))
 
+    # multiprocessing (pool) for each distance
     res = pool_map(nproc, _get_adi_snrs, GARRPSF, GARRPA, fwhm, plsc,
                    fixed(flux_dist_theta_all), wavelengths, mode, n_ks, scaling)
 
@@ -467,8 +459,8 @@ def _get_adi_snrs(psf, angle_list, fwhm, plsc, flux_dist_theta_all,
             # mean S/N in circular aperture
             snrs.append(np.mean(res[-1]))
 
-        # median of mean S/N at 3 equidistant positions
-        snr = np.median(snrs)
+        # max of mean S/N at 3 equidistant positions
+        snr = np.max(snrs)
 
     elif mode == 'pca':
         snrs = []
@@ -497,11 +489,12 @@ def _get_adi_snrs(psf, angle_list, fwhm, plsc, flux_dist_theta_all,
             snrs.append(maxsnr_ks)
 
             # DEBUG
-            # print(flux, snr)
-            # pp_subplots(np.array(fr_temp))
+            # print(flux, maxsnr_ks)
+            # pp_subplots(np.array(fr_temp), axis=False, horsp=0.05,
+            #             colorb=False)
 
-        # median of mean S/N at 3 equidistant positions
-        snr = np.median(snrs)
+        # max of mean S/N at 3 equidistant positions
+        snr = np.max(snrs)
 
     return flux, snr
 
@@ -528,7 +521,7 @@ def _compute_residual_frame(cube, angle_list, radius, fwhm, wavelengths=None,
             explained_variance_ratio = exp_var / full_var
             ratio_cumsum = np.cumsum(explained_variance_ratio)
             if n_ks == 1:
-                ind = np.searchsorted(ratio_cumsum, 0.95)
+                ind = max(2, np.searchsorted(ratio_cumsum, 0.85))
                 k_list = [ind]
             elif n_ks == 3:
                 k_list = list()
@@ -579,16 +572,13 @@ def _compute_residual_frame(cube, angle_list, radius, fwhm, wavelengths=None,
             explained_variance_ratio = exp_var / full_var
             ratio_cumsum = np.cumsum(explained_variance_ratio)
             if n_ks == 1:
-                ind = np.searchsorted(ratio_cumsum, 0.95)
+                ind = max(2, np.searchsorted(ratio_cumsum, 0.95))
                 k_list = [ind]
             elif n_ks == 3:
                 k_list = list()
                 k_list.append(max(2, np.searchsorted(ratio_cumsum, 0.95)))
                 k_list.append(np.searchsorted(ratio_cumsum, 0.97))
                 k_list.append(np.searchsorted(ratio_cumsum, 0.99))
-
-            # DEBUG
-            # print(k_list)
 
             res_frame = []
             for k in k_list:
@@ -636,5 +626,5 @@ def create_synt_cube(cube, psf, ang, plsc, dist=None, theta=None, flux=None,
     cubefc = cube_inject_companions(cube, psf, ang, flevel=flux, plsc=plsc,
                                     rad_dists=[dist], n_branches=1, theta=theta,
                                     verbose=verbose)
-
     return cubefc, posx, posy
+
