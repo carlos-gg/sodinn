@@ -712,12 +712,9 @@ class DataLabeler:
                         axis=False, horsp=0.05, colorb=False, cmap=cmap,
                         **kwargs)
 
-    # def estimate_fluxes(self, n_injections=100, kernel='rbf', epsilon=0.1,
-    #                     c=1e5, gamma=1e-2, n_proc=None, figsize=(10, 5),
-    #                     dpi=100, **kwargs):
     def estimate_fluxes(self, algo='pca', n_injections=100, kernel='rbf',
-                        epsilon=0.1, c=1e4, gamma=1e-2, n_proc=None,
-                        figsize=(10, 5), dpi=100, **kwargs):
+                        epsilon=0.1, c=1e4, gamma=1e-2, n_proc=None, dpi=100,
+                        **kwargs):
         """
         """
         if n_proc is None:
@@ -765,7 +762,7 @@ class DataLabeler:
                 self.radprof.append(fluxest.radprof)
 
             fluxest.run(kernel=kernel, epsilon=epsilon, c=c, gamma=gamma,
-                        figsize=figsize, dpi=dpi, **kwargs)
+                        dpi=dpi, **kwargs)
 
             self.flo.append(fluxest.estimated_fluxes_low)
             self.fhi.append(fluxest.estimated_fluxes_high)
