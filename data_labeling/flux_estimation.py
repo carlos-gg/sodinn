@@ -8,7 +8,7 @@ __all__ = ['FluxEstimator']
 import numpy as np
 from matplotlib import pyplot as plt
 from scipy import interpolate
-from sklearn.svm import SVR
+from scipy.interpolate import interp1d
 from vip_hci.conf import time_ini, timing, time_fin
 from vip_hci.var import frame_center
 from vip_hci.stats import frame_average_radprofile
@@ -184,30 +184,9 @@ class FluxEstimator:
         self.sampled_fluxes, self.sampled_snrs = res
         timing(starttime)
 
-    def run(self, kernel='rbf', epsilon=1e-1, c=1e4, gamma=1e-2,
-            dpi=100, **kwargs):
-        """ Building a regression model with he sampled fluxes and SNRs.
+    def run(self, dpi=100):
+        """ Obtaining the flux vs S/N relationship.
 
-        Epsilon-Support Vector Regression (important parameters in the model are
-        C and epsilon). The implementation is based on scikit-learn (libsvm).
-
-        Parameters
-        ----------
-        C : float, optional (default=1.0)
-            Penalty parameter C of the error term.
-        epsilon : float, optional (default=0.1)
-            Epsilon in the epsilon-SVR model. It specifies the epsilon-tube
-            within which no penalty is associated in the training loss function
-            with points predicted within a distance epsilon from the actual
-            value.
-        kernel : string, optional (default=’rbf’)
-            Specifies the kernel type to be used in the algorithm. It must be
-            one of ‘linear’, ‘poly’, ‘rbf’, ‘sigmoid’, ‘precomputed’ or a
-            callable. If none is given, ‘rbf’ will be used. If a callable is
-            given it is used to precompute the kernel matrix.
-        gamma : float, optional (default=’auto’)
-            Kernel coefficient for ‘rbf’, ‘poly’ and ‘sigmoid’. If gamma is
-            ‘auto’ then 1/n_features will be used instead.
         dpi : int, optional
             DPI of the figures.
         """
@@ -257,33 +236,23 @@ class FluxEstimator:
             fluxes = np.array(self.sampled_fluxes[i])
             snrs = np.array(self.sampled_snrs[i])
             mask = np.where(snrs > 0.1)
-            snrs = snrs[mask].reshape(-1, 1)
-            fluxes = fluxes[mask].reshape(-1, 1).ravel()
-            self.fluxes_list.append(fluxes)
-            self.snrs_list.append(snrs)
-
-            model = SVR(kernel=kernel, epsilon=epsilon, C=c, gamma=gamma,
-                        **kwargs)
-            model.fit(X=snrs, y=fluxes)
-            misnr = np.array(self.min_snr).reshape(1, -1)
-            masnr = np.array(self.max_snr).reshape(1, -1)
-            flux_for_lowsnr = model.predict(misnr)
-            flux_for_higsnr = model.predict(masnr)
-            fhi.append(flux_for_higsnr[0])
-            flo.append(flux_for_lowsnr[0])
-            snrminp = self.min_snr / 2
-            snrmaxp = self.max_snr * 2
-            snrs_pred = np.linspace(snrminp, snrmaxp, num=50).reshape(-1, 1)
-            fluxes_pred = model.predict(snrs_pred)
+            snrs = snrs[mask]
+            fluxes = fluxes[mask]
+            f = interp1d(np.sort(snrs), np.sort(fluxes), kind='linear')
+            snrs_pred = np.linspace(self.min_snr, self.max_snr, num=50)
+            fluxes_pred = f(snrs_pred)
+            flux_for_lowsnr = f(self.min_snr)
+            flux_for_higsnr = f(self.max_snr)
+            fhi.append(flux_for_higsnr)
+            flo.append(flux_for_lowsnr)
 
             # Figure of flux vs s/n
             axis.xaxis.set_tick_params(labelsize=6)
             axis.yaxis.set_tick_params(labelsize=6)
             axis.plot(fluxes, snrs, '.', alpha=0.2, markersize=4)
-            axis.plot(fluxes_pred, snrs_pred, '-', alpha=0.99,
-                      label='S/N regression model', color='orangered')
+            axis.plot(fluxes_pred, snrs_pred, '-', alpha=1, color='orangered')
             axis.grid(which='major', alpha=0.3)
-            axis.legend(fontsize=6)
+            axis.set_xlim(0)
             for l in plotvlines:
                 axis.plot((0, max(fluxes)), (l, l), ':', color='darksalmon')
             axis = fig.add_subplot(111, frame_on=False)
@@ -316,9 +285,9 @@ class FluxEstimator:
         plt.plot(self.distances, self.radprof, '--', alpha=0.8, color='gray',
                  lw=2, label='average radial profile')
         plt.plot(plot_x, flo, '.-', alpha=0.6, lw=2, color='dodgerblue',
-                 label='flux lower interval')
+                 label='flux lower bound')
         plt.plot(plot_x, fhi, '.-', alpha=0.6, color='dodgerblue', lw=2,
-                 label='flux upper interval')
+                 label='flux upper bound')
         plt.fill_between(plot_x, flo, fhi, where=flo <= fhi, alpha=0.2,
                          facecolor='dodgerblue', interpolate=True)
         plt.grid(which='major', alpha=0.4)
@@ -373,6 +342,7 @@ def _get_max_flux(i, distances, flux_min, fwhm, plsc, max_snr, wavelengths=None,
         # checking that the snr does not decrease
         if counter > 3 and snr <= snrs[-1]:
             print('Breaking... could not reach the max_snr value')
+            flux *= 4
             break
 
         snrs.append(snr)
