@@ -503,7 +503,7 @@ class DataLabeler:
             # Random rotations (and shifts)
             border_mode = 'reflect'
             roshi_nsamples = int(ncplus_samples * fraction_rotshifts)
-            msg = "{} C- rotations/shifts:"
+            msg = "{} C- rotations/shifts (- every 1k):"
             print(msg.format(roshi_nsamples))
             if self.sample_type == 'pw2d':
                 new_rotshi_samples = np.empty((roshi_nsamples, dshape[1],
@@ -524,11 +524,12 @@ class DataLabeler:
                                                 self.interpolation,
                                                 self.random_seed)
                 new_rotshi_samples[j] = trotshi
-                if j % 100 == 0:
-                    print('.', end='')
+                if j % 1000 == 0:
+                    print('-', end='')
             print('')
             data_cmin.append(new_rotshi_samples)
             del new_rotshi_samples
+            timing(starttime)
 
             # ------------------------------------------------------------------
             # Samples from the messed-up cube
@@ -564,7 +565,7 @@ class DataLabeler:
                               self.tss_window, self.random_seed,
                               nsamp_sep=mupcu_per_annulus)
                     res0 = res0[0]
-                    print('.', end='')
+                    print('-', end='')
                     if d == 0:
                         new_mupcu_samps = res0
                     else:

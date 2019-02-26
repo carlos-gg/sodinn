@@ -239,10 +239,12 @@ class FluxEstimator:
             snrs = snrs[mask]
             fluxes = fluxes[mask]
             f = interp1d(np.sort(snrs), np.sort(fluxes), kind='linear')
-            snrs_pred = np.linspace(self.min_snr, self.max_snr, num=50)
+            minsnr = max(self.min_snr, min(snrs))
+            maxsnr = min(self.max_snr, max(snrs))
+            snrs_pred = np.linspace(minsnr, maxsnr, num=50)
             fluxes_pred = f(snrs_pred)
-            flux_for_lowsnr = f(self.min_snr)
-            flux_for_higsnr = f(self.max_snr)
+            flux_for_lowsnr = f(minsnr)
+            flux_for_higsnr = f(maxsnr)
             fhi.append(flux_for_higsnr)
             flo.append(flux_for_lowsnr)
 
@@ -342,7 +344,7 @@ def _get_max_flux(i, distances, flux_min, fwhm, plsc, max_snr, wavelengths=None,
         # checking that the snr does not decrease
         if counter > 3 and snr <= snrs[-1]:
             print('Breaking... could not reach the max_snr value')
-            flux *= 4
+            flux *= 2
             break
 
         snrs.append(snr)
