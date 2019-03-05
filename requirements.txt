@@ -1,0 +1,5 @@
+git+git://github.com/vortex-exoplanet/VIP.git
+tables
+cupy
+tensorflow-gpu
+livelossplot
