@@ -40,46 +40,49 @@ class DataLabeler:
                  imlib='opencv', interpolation='bilinear', n_proc=1,
                  random_seed=42, identifier=1, dir_path=None, reload=False):
         """
-
-        cube : 3d ndarray or tuple of 3d ndarrays
-
-        Labeled data generation for a given dataset (ADI).
+        Labeled data generation for a given dataset (ADI) or list of datasets.
 
         Parameters
         ----------
         n_samples : int
             For ``mlar`` it is the total number of samples (signal+noise) per
-            annulus. For ``pairwise-XXX`` it is the number of iterations done per
-            annulus, so the total number of samples for the annulus is ~
+            annulus. For ``pw**`` it is the number of iterations done
+            per annulus, so the total number of samples for the annulus is ~
             2 * 3 * n_annuli * n_samples * n_temporal_pairwise_slices. The later
             term has a variable value.
         sample_type : {'mlar', 'tmlar', 'tmlar4d', 'pw2d', 'pw3d}
-            Type of labeled data depending on the model to be use (SODINN-svd or
-            SODINN-pairwise).
-        cube
+            Type of labeled data (connected to the model to be used).
+        cube : 3d ndarray or tuple of 3d ndarrays
         pa
         psf
         radius_int : int or None
             The initial separation [in pixels] at which the samples will be
             taken from. The default initial distance is ``2*fwhm``.
-        sampling_sep : int or None
-            Radial distances in pixels at which the samples are created.
         fwhm
         plsc
         delta_rot
         patch_size : int
             Patch size in terms of the FWHM.
-        rint_flux_scaling
-        rout_flux_scaling
-        rint_flux_spread
-        rout_flux_spread
         slice3d : bool
             Slicing the 3d samples wrt the shortest sequence.
         high_pass
+        kernel_size
         normalization
+        min_snr
+        max_snr
+        cevr_thresh
+        n_ks
+        kss_window
+        tss_window
+        lr_mode
         imlib
         interpolation
         nproc
+        random_seed
+        identifier
+        dir_path
+        reload
+            Used for the load method.
 
         """
         if isinstance(cube, np.ndarray):
@@ -196,6 +199,8 @@ class DataLabeler:
         self.n_total_samples = -1
         self.flo = []
         self.fhi = []
+
+        # getting distances on init
         self.distances = []
         if not reload:
             for i in range(self.n_cubes):
