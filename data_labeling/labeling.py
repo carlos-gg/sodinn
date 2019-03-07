@@ -59,12 +59,9 @@ class DataLabeler:
         cube
         pa
         psf
-        sample_dim : int, ``2`` or ``3``
-            Whether to return 2d or 3d samples, in the case of ``sample_type`` ==
-            ``pairwise-XXX``.
         radius_int : int or None
-            The initial separation in pixels at which the samples will be created.
-            The default initial distance is ``1.5*fwhm``.
+            The initial separation [in pixels] at which the samples will be
+            taken from. The default initial distance is ``2*fwhm``.
         sampling_sep : int or None
             Radial distances in pixels at which the samples are created.
         fwhm
@@ -83,12 +80,6 @@ class DataLabeler:
         imlib
         interpolation
         nproc
-
-        Returns
-        -------
-        x : 3d np.ndarray
-        y : 1d np.ndarray
-
 
         """
         if isinstance(cube, np.ndarray):
