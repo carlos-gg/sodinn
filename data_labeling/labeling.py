@@ -12,20 +12,17 @@ import copy
 import numpy as np
 from vip_hci.conf import time_ini, timing, time_fin
 from vip_hci.var import frame_center, prepare_matrix
-from vip_hci.conf.utils_conf import (pool_map, iterable, make_chunks)
+from vip_hci.conf.utils_conf import (pool_map, iterable)
 from vip_hci.var import cube_filter_highpass, get_annulus_segments
 from vip_hci.metrics import cube_inject_companions
 from vip_hci.preproc import (check_pa_vector, cube_derotate, cube_crop_frames,
                              frame_rotate, frame_shift, frame_px_resampling,
                              frame_crop, cube_collapse)
 from vip_hci.preproc.derotation import _compute_pa_thresh, _find_indices_adi
-from vip_hci.metrics import frame_quick_report
 from vip_hci.medsub import median_sub
-from vip_hci.pca import pca, svd_wrapper
 from .mlar_samples import (make_mlar_samples_ann_noise,
                            make_mlar_samples_ann_signal)
-from ..utils import (normalize_01_pw, cube_shift, create_synt_cube,
-                     close_hdf5_files)
+from ..utils import (normalize_01_pw, cube_shift, close_hdf5_files)
 from .flux_estimation import FluxEstimator
 
 
