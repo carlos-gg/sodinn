@@ -12,7 +12,7 @@ import copy
 import numpy as np
 from vip_hci.conf import time_ini, timing, time_fin
 from vip_hci.var import frame_center, prepare_matrix
-from vip_hci.conf.utils_conf import (pool_map, fixed, make_chunks)
+from vip_hci.conf.utils_conf import (pool_map, iterable, make_chunks)
 from vip_hci.var import cube_filter_highpass, pp_subplots, get_annulus_segments
 from vip_hci.metrics import cube_inject_companions
 from vip_hci.preproc import (check_pa_vector, cube_derotate, cube_crop_frames,
@@ -443,8 +443,8 @@ class DataLabeler:
             if self.sample_type in ('pw2d', 'pw3d'):
                 print("Making new C+ samples")
                 res = pool_map(self.n_proc, self._make_andro_samples_ann_signal,
-                               i, fixed(self.distances[i]), fixed(self.flo[i]),
-                               fixed(self.fhi[i]), False, n_samp_annulus)
+                               i, iterable(self.distances[i]), iterable(self.flo[i]),
+                               iterable(self.fhi[i]), False, n_samp_annulus)
 
                 if self.sample_dim == 3 and self.slice3d:
                     self._do_slice_3d(res)
@@ -571,7 +571,7 @@ class DataLabeler:
 
             elif self.sample_type in ('pw2d', 'pw3d'):
                 negs = pool_map(self.n_proc, self._make_andro_samples_ann_noise,
-                                i, fixed(self.distances[i]), mupcu_per_annulus,
+                                i, iterable(self.distances[i]), mupcu_per_annulus,
                                 mupcube, pa_mupcube)
 
                 # list of lists of 3d ndarrays
@@ -867,7 +867,7 @@ class DataLabeler:
                     print("Making C- samples")
                     negs = pool_map(self.n_proc,
                                     self._make_andro_samples_ann_noise, i,
-                                    fixed(self.distances[i]))
+                                    iterable(self.distances[i]))
 
                     # list of lists of 2d or 3d ndarrays
                     if self.sample_dim == 3 and self.slice3d:
@@ -903,8 +903,8 @@ class DataLabeler:
                     print("Making C+ samples")
                     pos = pool_map(self.n_proc,
                                    self._make_andro_samples_ann_signal, i,
-                                   fixed(self.distances[i]), fixed(self.flo[i]),
-                                   fixed(self.fhi[i]), False, None)
+                                   iterable(self.distances[i]), iterable(self.flo[i]),
+                                   iterable(self.fhi[i]), False, None)
 
                     if self.sample_dim == 3 and self.slice3d:
                         self._do_slice_3d(pos)
@@ -1265,7 +1265,7 @@ def _sample_flux_snr(distances, fwhm, plsc, n_injections, flux_min, flux_max,
 
     # Multiprocessing pool
     res = pool_map(nproc, _get_adi_snrs, GARRPSF, GARRPA, fwhm, plsc,
-                   fixed(flux_dist_theta_all))
+                   iterable(flux_dist_theta_all))
 
     for i in range(len(distances)):
         flux_dist = []
