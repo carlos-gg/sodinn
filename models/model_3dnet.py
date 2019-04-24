@@ -25,6 +25,7 @@ from vip_hci.conf import time_ini, timing, time_fin
 from sklearn.model_selection import train_test_split
 
 
+# TODO: convert the model to functional Keras API
 def train_3dnet(X, Y, test_size=0.1, validation_split=0.1, random_state=0,
                 layer_type=('conv3d', 'conv3d'), nconvlayers=2,
                 conv_nfilters=(40, 80), kernel_sizes=((3, 3, 3), (2, 2, 2)),
