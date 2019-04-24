@@ -1234,18 +1234,22 @@ def _concat_training_data(*args):
 
 
 def _sample_flux_snr(distances, fwhm, plsc, n_injections, flux_min, flux_max,
-                     nproc=10, random_seed=42):
+                     nproc=10, random_seed=42, wavelengths=None, mode='median',
+                     scaling='temp-standard'):
     """
     Sensible flux intervals depend on a combination of factors, # of frames,
     range of rotation, correlation, glare intensity.
     """
-    starttime = time_ini()
-    frsize = int(GARRAY.shape[1])
+    if GARRAY.ndim == 3:
+        frsize = int(GARRAY.shape[1])
+    elif GARRAY.ndim == 4:
+        frsize = int(GARRAY.shape[2])
     ninj = n_injections
     random_state = np.random.RandomState(random_seed)
     flux_dist_theta_all = list()
     snrs_list = list()
     fluxes_list = list()
+    n_ks = 3
 
     for i, d in enumerate(distances):
         yy, xx = get_annulus_segments((frsize, frsize), d, 1, 1)[0]
@@ -1263,9 +1267,10 @@ def _sample_flux_snr(distances, fwhm, plsc, n_injections, flux_min, flux_max,
             theta = np.mod(np.arctan2(injy, injx) / np.pi * 180, 360)
             flux_dist_theta_all.append((fluxes_dist[j], dist, theta))
 
-    # Multiprocessing pool
+    # multiprocessing (pool) for each distance
     res = pool_map(nproc, _get_adi_snrs, GARRPSF, GARRPA, fwhm, plsc,
-                   iterable(flux_dist_theta_all))
+                   iterable(flux_dist_theta_all), wavelengths, mode, n_ks,
+                   scaling)
 
     for i in range(len(distances)):
         flux_dist = []
@@ -1276,73 +1281,151 @@ def _sample_flux_snr(distances, fwhm, plsc, n_injections, flux_min, flux_max,
         fluxes_list.append(flux_dist)
         snrs_list.append(snr_dist)
 
-    timing(starttime)
     return fluxes_list, snrs_list
 
 
-def _compute_residual_frame(cube, angle_list, radius, fwhm, mode='pca', ncomp=2,
-                            svd_mode='lapack', scaling=None, collapse='median',
-                            imlib='opencv', interpolation='lanczos4'):
+def _get_adi_snrs(psf, angle_list, fwhm, plsc, flux_dist_theta_all,
+                  wavelengths=None, mode='median', n_ks=3,
+                  scaling='temp-standard', debug=False):
+    """ Get the mean S/N (at 3 equidistant positions) for a given flux and
+    distance, on a residual frame.
+    """
+    theta = flux_dist_theta_all[2]
+    flux = flux_dist_theta_all[0]
+    dist = flux_dist_theta_all[1]
+
+    snrs = []
+    # 3 equidistant azimuthal positions, 1 or several K values
+    for ang in [theta, theta + 120, theta + 240]:
+        cube_fc, pos = cube_inject_companions(GARRAY, psf, angle_list,
+                                              flevel=flux, plsc=plsc,
+                                              rad_dists=[dist], theta=ang,
+                                              verbose=False, full_output=True)
+        posy, posx = pos[0]
+        fr_temp = _compute_residual_frame(cube_fc, angle_list, dist, fwhm,
+                                          wavelengths, mode, n_ks, 'randsvd',
+                                          scaling, 'median', 'opencv',
+                                          'bilinear')
+        snrs_ks = []
+        for i in range(len(fr_temp)):
+            res = snr_ss(fr_temp[i], source_xy=(posx, posy), fwhm=fwhm,
+                         exclude_negative_lobes=True)
+            snrs_ks.append(res)
+
+        maxsnr_ks = max(snrs_ks)
+        if np.isinf(maxsnr_ks) or np.isnan(maxsnr_ks) or maxsnr_ks < 0:
+            maxsnr_ks = 0.01
+
+        snrs.append(maxsnr_ks)
+
+        if debug:
+            print(' ')
+            cy, cx = frame_center(GARRAY[0])
+            label = 'Flux: {:.1f}, Max S/N: {:.2f}'.format(flux, maxsnr_ks)
+            hp.plot_frames(tuple(np.array(fr_temp)), axis=False, horsp=0.05,
+                           colorbar=False, circle=((posx, posy), (cx, cy)),
+                           circle_radius=(5, dist), label=label, dpi=60)
+
+    # max of mean S/N at 3 equidistant positions
+    snr = np.max(snrs)
+
+    return flux, snr
+
+
+def _compute_residual_frame(cube, angle_list, radius, fwhm, wavelengths=None,
+                            mode='pca', n_ks=3, svd_mode='randsvd',
+                            scaling='temp-standard', collapse='median',
+                            imlib='opencv', interpolation='bilinear',
+                            debug=False):
     """
     """
     if cube.ndim == 3:
+        annulus_width = 3 * fwhm
+        inrad = radius - int(np.round(annulus_width / 2.))
+        outrad = radius + int(np.round(annulus_width / 2.))
+
         if mode == 'pca':
-            annulus_width = 3 * fwhm
-            data, ind = prepare_matrix(cube, scaling, mode='annular',
-                                       annulus_radius=radius, verbose=False,
-                                       annulus_width=annulus_width)
-            yy, xx = ind
-            V = svd_wrapper(data, svd_mode, ncomp, False, False)
-            transformed = np.dot(V, data.T)
-            reconstructed = np.dot(transformed.T, V)
-            residuals = data - reconstructed
-            cube_empty = np.zeros_like(cube)
-            cube_empty[:, yy, xx] = residuals
-            cube_res_der = cube_derotate(cube_empty, angle_list, imlib=imlib,
-                                         interpolation=interpolation)
-            res_frame = cube_collapse(cube_res_der, mode=collapse)
+            angle_list = check_pa_vector(angle_list)
+            svdecomp = SVDecomposer(cube, mode='annular', inrad=inrad,
+                                    outrad=outrad, svd_mode=svd_mode,
+                                    scaling=scaling, wavelengths=None,
+                                    verbose=False)
+            _ = svdecomp.get_cevr(plot=False)
+
+            if n_ks == 1:
+                k_list = [svdecomp.cevr_to_ncomp(0.90)]
+            elif n_ks == 3:
+                k_list = list()
+                k_list.append(svdecomp.cevr_to_ncomp(0.90))
+                k_list.append(svdecomp.cevr_to_ncomp(0.95))
+                k_list.append(svdecomp.cevr_to_ncomp(0.99))
+
+            res_frame = []
+            for k in k_list:
+                transformed = np.dot(svdecomp.v[:k], svdecomp.matrix.T)
+                reconstructed = np.dot(transformed.T, svdecomp.v[:k])
+                residuals = svdecomp.matrix - reconstructed
+                cube_empty = np.zeros_like(cube)
+                cube_empty[:, svdecomp.yy, svdecomp.xx] = residuals
+                cube_res_der = cube_derotate(cube_empty, angle_list,
+                                             imlib=imlib,
+                                             interpolation=interpolation)
+                res_frame.append(cube_collapse(cube_res_der, mode=collapse))
 
         elif mode == 'median':
             res_frame = median_sub(cube, angle_list, verbose=False)
 
     elif cube.ndim == 4:
+        inrad = max(1, radius - int(np.round(2 * fwhm)))
+        outrad = min(int(cube.shape[-1] / 2.), radius + int(np.round(5 * fwhm)))
+
         if mode == 'pca':
-            pass
+            z, n, y_in, x_in = cube.shape
+            angle_list = check_pa_vector(angle_list)
+            scale_list = check_scal_vector(wavelengths)
+            svdecomp = SVDecomposer(cube, mode='annular', inrad=inrad,
+                                    outrad=outrad, svd_mode=svd_mode,
+                                    scaling=scaling, wavelengths=scale_list,
+                                    verbose=False)
+            _ = svdecomp.get_cevr(plot=False)
+            if n_ks == 1:
+                k_list = [svdecomp.cevr_to_ncomp(0.90)]
+            elif n_ks == 3:
+                k_list = list()
+                k_list.append(svdecomp.cevr_to_ncomp(0.90))
+                k_list.append(svdecomp.cevr_to_ncomp(0.95))
+                k_list.append(svdecomp.cevr_to_ncomp(0.99))
+
+            if debug:
+                print(k_list)
+
+            res_frame = []
+            for k in k_list:
+                transformed = np.dot(svdecomp.v[:k], svdecomp.matrix.T)
+                reconstructed = np.dot(transformed.T, svdecomp.v[:k])
+                residuals = svdecomp.matrix - reconstructed
+                res_cube = np.zeros(svdecomp.cube4dto3d_shape)
+                res_cube[:, svdecomp.yy, svdecomp.xx] = residuals
+
+                # Descaling the spectral channels
+                resadi_cube = np.zeros((n, y_in, x_in))
+                for i in range(n):
+                    frame_i = scwave(res_cube[i * z:(i + 1) * z, :, :],
+                                     scale_list, full_output=False,
+                                     inverse=True, y_in=y_in, x_in=x_in,
+                                     collapse=collapse)
+                    resadi_cube[i] = frame_i
+
+                cube_res_der = cube_derotate(resadi_cube, angle_list,
+                                             imlib=imlib,
+                                             interpolation=interpolation)
+                res_frame.append(cube_collapse(cube_res_der, mode=collapse))
 
         elif mode == 'median':
-            res_frame = median_sub(cube, angle_list, verbose=False)
+            res_frame = median_sub(cube, angle_list, scale_list=wavelengths,
+                                   verbose=False)
 
     return res_frame
-
-
-def _get_adi_snrs(psf, angle_list, fwhm, plsc, flux_dist_theta_all, mode,
-                  ncomp):
-    """ Get the mean S/N (at 3 equidistant positions) for a given flux and
-    distance, on a median/PCA subtracted frame.
-    """
-    snrs = []
-    theta = flux_dist_theta_all[2]
-    flux = flux_dist_theta_all[0]
-    dist = flux_dist_theta_all[1]
-
-    # 3 equidistant azimuthal positions
-    for ang in [theta, theta + 120, theta + 240]:
-        cube_fc, cx, cy = create_synt_cube(GARRAY, psf, angle_list, plsc,
-                                           flux=flux, dist=dist, theta=ang,
-                                           verbose=False)
-        fr_temp = _compute_residual_frame(cube_fc, angle_list, dist, fwhm,
-                                          mode, ncomp, svd_mode='lapack',
-                                          scaling=None, collapse='median',
-                                          imlib='opencv',
-                                          interpolation='lanczos4')
-        res = frame_quick_report(fr_temp, fwhm, source_xy=(cx, cy),
-                                 verbose=False)
-        # mean S/N in circular aperture
-        snrs.append(np.mean(res[-1]))
-
-    # median of mean S/N at 3 equidistant positions
-    median_snr = np.median(snrs)
-    return flux, median_snr
 
 
 
