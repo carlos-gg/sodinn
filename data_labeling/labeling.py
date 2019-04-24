@@ -13,7 +13,7 @@ import numpy as np
 from vip_hci.conf import time_ini, timing, time_fin
 from vip_hci.var import frame_center, prepare_matrix
 from vip_hci.conf.utils_conf import (pool_map, iterable, make_chunks)
-from vip_hci.var import cube_filter_highpass, pp_subplots, get_annulus_segments
+from vip_hci.var import cube_filter_highpass, get_annulus_segments
 from vip_hci.metrics import cube_inject_companions
 from vip_hci.preproc import (check_pa_vector, cube_derotate, cube_crop_frames,
                              frame_rotate, frame_shift, frame_px_resampling,
@@ -659,7 +659,7 @@ class DataLabeler:
                 print(msg1.format(self.y_plus[index]))
                 for i in range(len(index)):
                     for j in range(self.x_plus[index[i]].shape[1]):
-                        pp_subplots(self.x_plus[index[i], ind_slices, j],
+                        plot_frames(self.x_plus[index[i], ind_slices, j],
                                     maxplots=show_n_slices, axis=False,
                                     horsp=0.05, colorb=False, cmap=cmap,
                                     dpi=dpi, **kwargs)
@@ -668,7 +668,7 @@ class DataLabeler:
                 print(msg1.format(self.y_minus[index]))
                 for i in range(len(index)):
                     for j in range(self.x_minus[index[i]].shape[1]):
-                        pp_subplots(self.x_minus[index[i], ind_slices, j],
+                        plot_frames(self.x_minus[index[i], ind_slices, j],
                                     maxplots=show_n_slices, axis=False,
                                     horsp=0.05, colorb=False, cmap=cmap,
                                     dpi=dpi, **kwargs)
@@ -676,13 +676,13 @@ class DataLabeler:
             else:
                 print(msg1.format(self.y_plus[index]))
                 for i in range(len(index)):
-                    pp_subplots(self.x_plus[index[i]][ind_slices],
+                    plot_frames(self.x_plus[index[i]][ind_slices],
                                 maxplots=show_n_slices, axis=False, horsp=0.05,
                                 colorb=False, cmap=cmap, dpi=dpi, **kwargs)
 
                 print(msg1.format(self.y_minus[index]))
                 for i in range(len(index)):
-                    pp_subplots(self.x_minus[index[i]][ind_slices],
+                    plot_frames(self.x_minus[index[i]][ind_slices],
                                 maxplots=show_n_slices, axis=False, horsp=0.05,
                                 colorb=False, cmap=cmap, dpi=dpi, **kwargs)
 
@@ -701,11 +701,11 @@ class DataLabeler:
 
             print(msg0.format(index))
             print(msg1.format(self.y_plus[index]))
-            pp_subplots(self.x_plus[index], maxplots=n_samples,
+            plot_frames(self.x_plus[index], maxplots=n_samples,
                         axis=False, horsp=0.05, colorb=False, cmap=cmap,
                         **kwargs)
             print(msg1.format(self.y_minus[index]))
-            pp_subplots(self.x_minus[index], maxplots=n_samples,
+            plot_frames(self.x_minus[index], maxplots=n_samples,
                         axis=False, horsp=0.05, colorb=False, cmap=cmap,
                         **kwargs)
 
