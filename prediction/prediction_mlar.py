@@ -1,19 +1,17 @@
 """
 Prediction procedures for MLAR, TMLAR and TMLAR4D samples.
 """
-from __future__ import print_function
 from __future__ import absolute_import
+from __future__ import print_function
 
 __all__ = ['predict_mlar']
 
 import numpy as np
-from vip_hci.preproc import (cube_derotate, cube_crop_frames, cube_derotate,
-                             check_pa_vector)
-from vip_hci.conf import time_ini, timing, time_fin, Progressbar
-from vip_hci.var import (pp_subplots as plots,
-                         frame_center, dist, cube_filter_highpass,
-                         get_annulus_segments)
-from vip_hci.conf.utils_conf import (pool_map, iterable, make_chunks)
+from hciplot import plot_frames
+from vip_hci.preproc import (cube_crop_frames)
+from vip_hci.conf import time_ini, timing
+from vip_hci.var import (get_annulus_segments)
+from vip_hci.conf.utils_conf import (pool_map, iterable)
 from ..utils import normalize_01, create_feature_matrix, cube_move_subsample
 from ..data_labeling import svd_decomp, get_cumexpvar
 
@@ -199,8 +197,8 @@ def inspect_patch_multik(model, cube, angle_list, k_list, inrad=10, outrad=14,
         proba = model.predict_proba(patch_vector)
 
     if plot:
-        plots(np.squeeze(patch_reshaped), cmap='viridis', axis=False, dpi=dpi,
-              maxplots=np.squeeze(patch_reshaped).shape[0], colorb=False)
+        plot_frames(tuple(np.squeeze(patch_reshaped)), cmap='viridis',
+                    axis=False, dpi=dpi, colorb=False)
     print('Proba :', proba, '\n')
 
     return patch, proba

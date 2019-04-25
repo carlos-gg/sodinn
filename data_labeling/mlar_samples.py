@@ -4,18 +4,21 @@ discriminative models.
 """
 from __future__ import print_function, division, absolute_import
 
+import warnings
+from multiprocessing import cpu_count
+from multiprocessing import get_start_method
+
 import cupy
 # import torch
 import numpy as np
-from vip_hci.preproc import cube_derotate, cube_crop_frames, cube_derotate
-from vip_hci.var import (get_annulus_segments, reshape_matrix, prepare_matrix,
-                         frame_center, cube_filter_highpass)
-from vip_hci.pca import pca, svd_wrapper, randomized_svd_gpu
-from vip_hci.conf.utils_conf import (pool_map, iterable, make_chunks)
-from multiprocessing import Pool, cpu_count
-from multiprocessing import get_start_method
+from vip_hci.conf.utils_conf import (pool_map, iterable)
+from vip_hci.pca.svd import svd_wrapper
+from vip_hci.preproc import cube_crop_frames, cube_derotate
+from vip_hci.var import (get_annulus_segments, prepare_matrix,
+                         frame_center)
+
 from ..utils import (normalize_01, create_synt_cube, cube_move_subsample)
-import warnings
+
 warnings.filterwarnings(action='ignore', category=UserWarning)
 
 

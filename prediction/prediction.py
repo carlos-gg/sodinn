@@ -4,12 +4,14 @@ Prediction class.
 
 __all__ = ['Predictor']
 
+from copy import deepcopy
+
 import numpy as np
 import tables
-from copy import deepcopy
-from vip_hci.var.plotting import pp_subplots
-from .prediction_pw import predict_pairwise
+from hciplot import plot_frames
+
 from .prediction_mlar import predict_mlar
+from .prediction_pw import predict_pairwise
 from ..data_labeling.labeling import DataLabeler
 from ..models.models import Model
 
@@ -282,10 +284,10 @@ class Predictor:
         max_slices = sample.shape[0]
         if self.sample_type == 'tmlar4d':
             for i in range(sample.shape[1]):
-                pp_subplots(sample[:, i], maxplots=max_slices, axis=False,
-                            colorb=False, cmap=cmap, dpi=dpi, horsp=0.05)
+                plot_frames(tuple(sample[:, i]), axis=False,
+                            colorbar=False, cmap=cmap, dpi=dpi, horsp=0.05)
         else:
-            pp_subplots(sample, maxplots=max_slices, axis=False, colorb=False,
+            plot_frames(tuple(sample), axis=False, colorbar=False,
                         cmap=cmap, dpi=dpi, horsp=0.05)
 
     def inspect_probmap(self, vmin_log=1e-10, labelsize=10, circlerad=10,
@@ -304,8 +306,9 @@ class Predictor:
         if print_info:
             self.print_info()
 
-        pp_subplots(self.pmap, self.pmap, log=(False, True), vmin=(0, vmin_log),
-                    vmax=(1, 1), label=('Probmap', 'Probmap (logscale)'),
+        plot_frames((tuple(self.pmap), tuple(self.pmap)), log=(False, True),
+                    vmin=(0, vmin_log), vmax=(1, 1),
+                    label=('Probmap', 'Probmap (logscale)'),
                     labelsize=labelsize, circlerad=circlerad,
                     circlecolor=circlecolor, circlealpha=circlealpha,
                     showcent=showcent, grid=grid, gridalpha=gridalpha,

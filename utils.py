@@ -14,10 +14,11 @@ import numpy as np
 import bottleneck as bn
 from skimage.draw import circle
 from matplotlib.pyplot import (figure, show, subplot, title, hist)
+from hciplot import plot_frames
 import cv2
-from vip_hci.metrics import noise_per_annulus, cube_inject_companions
-from vip_hci.var import pp_subplots as plots, frame_center
-from vip_hci.preproc import frame_crop, check_pa_vector, frame_shift
+from vip_hci.metrics import cube_inject_companions
+from vip_hci.var import frame_center
+from vip_hci.preproc import frame_crop, frame_shift
 
 
 def close_hdf5_files():
@@ -189,33 +190,33 @@ def plot_traindata(T, zeroind=None, oneind=None, full_info=False,
 
         if save_plot:
             print('{} | Sample {}'.format(int(yarr[zeroind]), zeroind))
-            plots(zerarr, dpi=dpi, axis=False, vmin=xarr[zeroind].min(), 
-                  vmax=xarr[zeroind].max(), save='patch_zero.pdf', colorb=False,
-                  maxplots=npatches, horsp=0.1)
+            plot_frames(zerarr, dpi=dpi, axis=False, vmin=xarr[zeroind].min(),
+                        vmax=xarr[zeroind].max(), save='patch_zero.pdf',
+                        colorbar=False, horsp=0.1)
             if xarrn is not None:
-                plots(zerarrn, axis=False, dpi=dpi, colorb=False,
-                      save='patch_zero_nor.pdf', maxplots=npatches, horsp=0.1)
+                plot_frames(zerarrn, axis=False, dpi=dpi, colorbar=False,
+                            save='patch_zero_nor.pdf', horsp=0.1)
             print(int(yarr[oneind]),'| Sample', oneind) 
-            plots(onearr, axis=False, vmin=xarr[oneind].min(), 
-                  vmax=xarr[oneind].max(), dpi=dpi, save='patch_one.pdf', 
-                  colorb=False, maxplots=npatches, horsp=0.1)
+            plot_frames(onearr, axis=False, vmin=xarr[oneind].min(),
+                        vmax=xarr[oneind].max(), dpi=dpi, save='patch_one.pdf',
+                        colorbar=False, horsp=0.1)
             if xarrn is not None:
-                plots(onearr, axis=False, dpi=dpi, horsp=0.1,
-                      save='patch_one_nor.pdf', colorb=False, maxplots=npatches)
+                plot_frames(onearr, axis=False, dpi=dpi, horsp=0.1,
+                            save='patch_one_nor.pdf', colorbar=False)
         
         else:
-            plots(zerarr, title='Unnormalized ZERO multiK patch', dpi=dpi,
-                  axis=False, vmin=xarr[zeroind].min(), vmax=xarr[zeroind].max(),
-                  maxplots=npatches, horsp=0.1)
+            plot_frames(zerarr, title='Unnormalized ZERO multiK patch',
+                        dpi=dpi, axis=False, vmin=xarr[zeroind].min(),
+                        vmax=xarr[zeroind].max(), horsp=0.1)
             if xarrn is not None:
-                plots(zerarrn, title='Normalized ZERO multiK patch', 
-                      axis=False, dpi=dpi, maxplots=npatches, horsp=0.1)
-            plots(onearr, title='Unnormalized ONE multiK patch', axis=False,
-                  vmin=xarr[oneind].min(), vmax=xarr[oneind].max(), dpi=dpi,
-                  maxplots=npatches, horsp=0.1)
+                plot_frames(zerarrn, title='Normalized ZERO multiK patch',
+                            axis=False, dpi=dpi, horsp=0.1)
+            plot_frames(onearr, title='Unnormalized ONE multiK patch',
+                        axis=False, vmin=xarr[oneind].min(),
+                        vmax=xarr[oneind].max(), dpi=dpi, horsp=0.1)
             if xarrn is not None:
-                plots(onearrn, title='Normalized ONE multiK patch', 
-                      axis=False, dpi=dpi, maxplots=npatches, horsp=0.1)
+                plot_frames(onearrn, title='Normalized ONE multiK patch',
+                            axis=False, dpi=dpi, horsp=0.1)
 
 
 def create_feature_matrix(X, psf):

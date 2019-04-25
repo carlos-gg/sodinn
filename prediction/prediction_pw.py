@@ -1,16 +1,16 @@
 """
 Prediction procedures.
 """
-from __future__ import print_function
 from __future__ import absolute_import
+from __future__ import print_function
 
 __all__ = ['predict_pairwise']
 
 import numpy as np
-from vip_hci.preproc import (cube_crop_frames, cube_derotate,
-                             check_pa_vector)
+from hciplot import plot_frames
+from vip_hci.preproc import (cube_crop_frames, cube_derotate)
 from vip_hci.conf import time_ini, timing, Progressbar
-from vip_hci.var import (pp_subplots as plots, frame_center, dist,
+from vip_hci.var import (frame_center, dist,
                          cube_filter_highpass, get_annulus_segments)
 from ..utils import normalize_01_pw
 from multiprocessing import cpu_count
@@ -41,7 +41,7 @@ def prepare_patches(cube, angle_list, xy, fwhm, patch_size_px, delta_rot=0.5,
 
     if debug:
         print('dist : {}'.format(xy_dist))
-        plots(patches, axis=False, colorb=False, maxplots=patches.shape[0])
+        plot_frames(tuple(patches), axis=False, colorbar=False,)
     return patches
 
 

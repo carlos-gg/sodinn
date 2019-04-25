@@ -1,3 +1,8 @@
+scipy
+matplotlib
+pandas
+numpy
+hciplot
 git+git://github.com/vortex-exoplanet/VIP.git
 tables
 cupy

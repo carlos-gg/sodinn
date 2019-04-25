@@ -11,19 +11,17 @@ from pandas import DataFrame
 from matplotlib import pyplot as plt
 from scipy import interpolate
 from scipy.interpolate import interp1d
-from vip_hci.conf import time_ini, timing, time_fin
+from vip_hci.conf import time_ini, timing
 from vip_hci.stats import frame_average_radprofile
 from vip_hci.conf.utils_conf import pool_map, iterable, check_array
-from vip_hci.var import get_annulus_segments, prepare_matrix, frame_center
+from vip_hci.var import get_annulus_segments, frame_center
 from vip_hci.metrics import cube_inject_companions
-from vip_hci.preproc import (check_pa_vector, cube_derotate, cube_crop_frames,
-                             frame_rotate, frame_shift, frame_px_resampling,
-                             frame_crop, cube_collapse, check_pa_vector,
+from vip_hci.preproc import (cube_derotate, cube_collapse, check_pa_vector,
                              check_scal_vector)
 from vip_hci.preproc import cube_rescaling_wavelengths as scwave
 from vip_hci.metrics import snr_ss
 from vip_hci.medsub import median_sub
-from vip_hci.pca import pca, SVDecomposer
+from vip_hci.pca import SVDecomposer
 
 import warnings
 # To silence UserWarning when scaling data with sklearn
@@ -437,8 +435,9 @@ def _sample_flux_snr(distances, fwhm, plsc, n_injections, flux_min, flux_max,
         for j in range(ninj):
             injx = xx[inds_inj[j]]
             injy = yy[inds_inj[j]]
-            injx -= frame_center(GARRAY[0])[1]
-            injy -= frame_center(GARRAY[0])[0]
+            cy, cx = frame_center(GARRAY[0])
+            injx -= cx
+            injy -= cy
             dist = np.sqrt(injx ** 2 + injy ** 2)
             theta = np.mod(np.arctan2(injy, injx) / np.pi * 180, 360)
             flux_dist_theta_all.append((fluxes_dist[j], dist, theta))
@@ -611,7 +610,7 @@ def create_synt_cube(cube, psf, ang, plsc, dist=None, theta=None, flux=None,
     centy_fr, centx_fr = frame_center(cube[0])
     random_state = np.random.RandomState(random_seed)
     if theta is None:
-        theta = random_state.randint(0,360)
+        theta = random_state.randint(0, 360)
 
     posy = dist * np.sin(np.deg2rad(theta)) + centy_fr
     posx = dist * np.cos(np.deg2rad(theta)) + centx_fr
@@ -622,4 +621,3 @@ def create_synt_cube(cube, psf, ang, plsc, dist=None, theta=None, flux=None,
                                     rad_dists=[dist], n_branches=1, theta=theta,
                                     verbose=verbose)
     return cubefc, posx, posy
-

@@ -10,16 +10,16 @@ import os
 import tables
 import copy
 import numpy as np
+from hciplot import plot_frames
 from vip_hci.conf import time_ini, timing, time_fin
-from vip_hci.var import frame_center, prepare_matrix
+from vip_hci.var import frame_center
 from vip_hci.conf.utils_conf import (pool_map, iterable)
 from vip_hci.var import cube_filter_highpass, get_annulus_segments
 from vip_hci.metrics import cube_inject_companions
 from vip_hci.preproc import (check_pa_vector, cube_derotate, cube_crop_frames,
                              frame_rotate, frame_shift, frame_px_resampling,
-                             frame_crop, cube_collapse)
+                             frame_crop)
 from vip_hci.preproc.derotation import _compute_pa_thresh, _find_indices_adi
-from vip_hci.medsub import median_sub
 from .mlar_samples import (make_mlar_samples_ann_noise,
                            make_mlar_samples_ann_signal)
 from ..utils import (normalize_01_pw, cube_shift, close_hdf5_files)
@@ -74,7 +74,7 @@ class DataLabeler:
         lr_mode
         imlib
         interpolation
-        nproc
+        n_proc
         random_seed
         identifier
         dir_path
@@ -656,32 +656,30 @@ class DataLabeler:
                 print(msg1.format(self.y_plus[index]))
                 for i in range(len(index)):
                     for j in range(self.x_plus[index[i]].shape[1]):
-                        plot_frames(self.x_plus[index[i], ind_slices, j],
-                                    maxplots=show_n_slices, axis=False,
-                                    horsp=0.05, colorb=False, cmap=cmap,
-                                    dpi=dpi, **kwargs)
+                        plot_frames(tuple(self.x_plus[index[i], ind_slices, j]),
+                                    axis=False, horsp=0.05, colorbar=False,
+                                    cmap=cmap, dpi=dpi, **kwargs)
                     print('')
 
                 print(msg1.format(self.y_minus[index]))
                 for i in range(len(index)):
                     for j in range(self.x_minus[index[i]].shape[1]):
-                        plot_frames(self.x_minus[index[i], ind_slices, j],
-                                    maxplots=show_n_slices, axis=False,
-                                    horsp=0.05, colorb=False, cmap=cmap,
-                                    dpi=dpi, **kwargs)
+                        plot_frames(tuple(self.x_minus[index[i], ind_slices, j]),
+                                    axis=False, horsp=0.05, colorbar=False,
+                                    cmap=cmap, dpi=dpi, **kwargs)
                     print('')
             else:
                 print(msg1.format(self.y_plus[index]))
                 for i in range(len(index)):
-                    plot_frames(self.x_plus[index[i]][ind_slices],
-                                maxplots=show_n_slices, axis=False, horsp=0.05,
-                                colorb=False, cmap=cmap, dpi=dpi, **kwargs)
+                    plot_frames(tuple(self.x_plus[index[i]][ind_slices]),
+                                axis=False, horsp=0.05, colorbar=False,
+                                cmap=cmap, dpi=dpi, **kwargs)
 
                 print(msg1.format(self.y_minus[index]))
                 for i in range(len(index)):
-                    plot_frames(self.x_minus[index[i]][ind_slices],
-                                maxplots=show_n_slices, axis=False, horsp=0.05,
-                                colorb=False, cmap=cmap, dpi=dpi, **kwargs)
+                    plot_frames(tuple(self.x_minus[index[i]][ind_slices]),
+                                axis=False, horsp=0.05, colorbar=False,
+                                cmap=cmap, dpi=dpi, **kwargs)
 
         elif self.sample_type == 'pw2d':
             if index is None:
