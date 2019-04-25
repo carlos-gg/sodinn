@@ -19,7 +19,7 @@ from vip_hci.metrics import cube_inject_companions
 from vip_hci.preproc import (cube_derotate, cube_collapse, check_pa_vector,
                              check_scal_vector)
 from vip_hci.preproc import cube_rescaling_wavelengths as scwave
-from vip_hci.metrics import snr_ss
+from vip_hci.metrics import snr as snr_ss
 from vip_hci.medsub import median_sub
 from vip_hci.pca import SVDecomposer
 
