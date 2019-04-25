@@ -14,7 +14,7 @@ from vip_hci.var import (pp_subplots as plots, frame_center, dist,
                          cube_filter_highpass, get_annulus_segments)
 from ..utils import normalize_01_pw
 from multiprocessing import cpu_count
-from vip_hci.conf.utils_conf import (pool_imap, fixed, make_chunks)
+from vip_hci.conf.utils_conf import (pool_imap, iterable, make_chunks)
 from vip_hci.preproc import check_pa_vector
 from ..data_labeling.labeling import _pairwise_diff_residuals
 
@@ -136,7 +136,7 @@ def predict_pairwise(model, cube, angle_list, fwhm, patch_size_px, delta_rot,
     nchunks = nproc * chunks_per_proc
     print("Grabbing patches with {} processes".format(nproc))
     res_ = list(Progressbar(pool_imap(nproc, _parallel_make_patches_chunk,
-                                      fixed(make_chunks(indices, nchunks)),
+                                      iterable(make_chunks(indices, nchunks)),
                                       ind, cube, angle_list, fwhm,
                                       patch_size_px, delta_rot, normalization,
                                       imlib, interpolation),

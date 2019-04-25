@@ -11,7 +11,7 @@ from vip_hci.preproc import cube_derotate, cube_crop_frames, cube_derotate
 from vip_hci.var import (get_annulus_segments, reshape_matrix, prepare_matrix,
                          frame_center, cube_filter_highpass)
 from vip_hci.pca import pca, svd_wrapper, randomized_svd_gpu
-from vip_hci.conf.utils_conf import (pool_map, fixed, make_chunks)
+from vip_hci.conf.utils_conf import (pool_map, iterable, make_chunks)
 from multiprocessing import Pool, cpu_count
 from multiprocessing import get_start_method
 from ..utils import (normalize_01, create_synt_cube, cube_move_subsample)
@@ -134,7 +134,7 @@ def make_mlar_samples_ann_signal(input_array, angle_list, psf, n_samples,
         flux_dist_theta = zip(fluxes, dists, thetas)
 
         res = pool_map(nproc, _inject_FC, cube, psf, angle_list, plsc,
-                       inrad, outrad, fixed(flux_dist_theta), k_list,
+                       inrad, outrad, iterable(flux_dist_theta), k_list,
                        scaling, collapse_func, patch_size, lr_mode, interp,
                        mode)
         for m in range(n_req_inject):

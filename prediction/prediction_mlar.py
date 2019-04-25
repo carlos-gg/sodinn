@@ -13,7 +13,7 @@ from vip_hci.conf import time_ini, timing, time_fin, Progressbar
 from vip_hci.var import (pp_subplots as plots,
                          frame_center, dist, cube_filter_highpass,
                          get_annulus_segments)
-from vip_hci.conf.utils_conf import (pool_map, fixed, make_chunks)
+from vip_hci.conf.utils_conf import (pool_map, iterable, make_chunks)
 from ..utils import normalize_01, create_feature_matrix, cube_move_subsample
 from ..data_labeling import svd_decomp, get_cumexpvar
 
@@ -40,7 +40,7 @@ def predict_mlar(mode, model, cube, angle_list, fwhm, in_ann, out_ann,
         print('N annuli: {}'.format(n_annuli))
         print('Grabbing MLAR/TMLAR/TMLAR4D samples per annulus')
 
-    res = pool_map(n_proc, get_mlar_patches, fixed(range(in_ann, out_ann)),
+    res = pool_map(n_proc, get_mlar_patches, iterable(range(in_ann, out_ann)),
                    fwhm, angle_list, patch_size, collapse_func, scaling,
                    lr_mode, cevr_thresh, n_ks, normalize, False, mode)
     for i in range(len(res)):
