@@ -1,5 +1,6 @@
+keras
+tensorflow
 bottleneck
-cv2
 scikit-image
 scipy
 matplotlib

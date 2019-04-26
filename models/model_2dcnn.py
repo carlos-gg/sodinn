@@ -1,28 +1,23 @@
 """
 Discriminative models
 """
-from __future__ import print_function
 from __future__ import absolute_import
+from __future__ import print_function
+
+import livelossplot
 import numpy as np
 import tensorflow as tf
-import livelossplot
-from tensorflow.keras.backend import set_session, get_session, clear_session
-from tensorflow.keras.models import Sequential, Model as KerasModel
-from tensorflow.keras.layers import (Dense, Dropout, Activation, Flatten,
-                                     Conv2D, ConvLSTM2D, MaxPooling2D, Conv3D,
-                                     Input, MaxPooling3D, ZeroPadding3D,
-                                     CuDNNLSTM, LSTM, CuDNNGRU, concatenate,
-                                     SpatialDropout3D, SpatialDropout2D,
-                                     AveragePooling2D, AveragePooling3D,
-                                     TimeDistributed, Bidirectional,
-                                     BatchNormalization)
-from tensorflow.keras.optimizers import Adam, RMSprop, Adadelta, SGD
-from tensorflow.keras.callbacks import EarlyStopping, TensorBoard
-from tensorflow.keras.utils import multi_gpu_model
+from keras.backend import set_session, clear_session
+from keras.callbacks import EarlyStopping, TensorBoard
+from keras.layers import (Dense, Dropout, Activation, Flatten,
+                          Conv2D, MaxPooling2D)
+from keras.models import Sequential
+from keras.optimizers import Adam
+from keras.utils import multi_gpu_model
+from sklearn.model_selection import train_test_split
 # from keras.regularizers import l2, l1, l1_l2
 # from keras.layers.advanced_activations import PReLU
 from vip_hci.conf import time_ini, timing, time_fin
-from sklearn.model_selection import train_test_split
 
 
 def train_2dconvnet(X, Y, test_size=0.1, validation_split=0.1, random_state=0,
