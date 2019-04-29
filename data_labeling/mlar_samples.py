@@ -356,7 +356,7 @@ def get_cumexpvar(cube, expvar_mode, inrad, outrad, size_patch, k_list=None,
     n_frames = cube.shape[0]
     matrix_svd = prepare_matrix(cube, scaling='temp-standard',
                                 mask_center_px=None, mode=expvar_mode,
-                                annulus_radius=inrad, annulus_width=outrad,
+                                inner_radius=inrad, outer_radius=outrad,
                                 verbose=False)
     if expvar_mode == 'annular':
         matrix_svd = matrix_svd[0]
