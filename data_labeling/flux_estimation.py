@@ -19,7 +19,7 @@ from vip_hci.metrics import cube_inject_companions
 from vip_hci.preproc import (cube_derotate, cube_collapse, check_pa_vector,
                              check_scal_vector)
 from vip_hci.preproc import cube_rescaling_wavelengths as scwave
-from vip_hci.metrics import snr as snr_ss
+from vip_hci.metrics import snr
 from vip_hci.medsub import median_sub
 from vip_hci.pca import SVDecomposer
 
@@ -73,9 +73,9 @@ class FluxEstimator:
 
     """
     def __init__(self, cube, psf, distances, angles, fwhm, plsc,
-                 wavelengths=None, n_injections=30, algo='pca', min_snr=1,
-                 max_snr=3, inter_extrap=False, inter_extrap_dist=None,
-                 random_seed=42, n_proc=2):
+                 wavelengths=None, spectrum=None, n_injections=30, algo='pca',
+                 min_snr=1, max_snr=3, inter_extrap=False,
+                 inter_extrap_dist=None, random_seed=42, n_proc=2):
         """ Initialization of the flux estimator object.
         """
         global GARRAY
@@ -110,20 +110,17 @@ class FluxEstimator:
 
         if cube.ndim == 4:
             if wavelengths is None:
-                raise ValueError('`wavelengths` parameter must be provided')
+                raise ValueError('`wavelengths` must be provided when `cube` '
+                                 'is a 4d array')
+            if spectrum is None:
+                raise ValueError('`spectrum` must be provided when `cube` is a '
+                                 '4d array')
             check_array(wavelengths, dim=1, msg='wavelengths')
+            check_array(spectrum, dim=1, msg='spectrum')
 
             cy, cx = frame_center(cube)
             maxd = cy - 5 * fwhm
-
-            if isinstance(distances, (tuple, list)):
-                max_distances = 0
-                for dist in distances:
-                    max_distances = max(max_distances, max(distances))
-            else:
-                max_distances = max(distances)
-
-            if not max_distances <= maxd:
+            if not max(distances) <= maxd:
                 raise ValueError('`distances` contains a value that is too '
                                  'high wrt the frame size. Values must be '
                                  'smaller than {:.2f}'.format(maxd))
@@ -141,6 +138,7 @@ class FluxEstimator:
         self.plsc = plsc
         self.scaling = 'temp-standard'
         self.wavelengths = wavelengths
+        self.spectrum = spectrum
         self.n_injections = n_injections
         self.algo = algo
         self.min_snr = min_snr
@@ -178,8 +176,9 @@ class FluxEstimator:
               "function")
         flux_min = pool_map(self.n_proc, _get_min_flux, iterable(self.n_dist),
                             self.distances, radprof, self.fwhm, self.plsc,
-                            iterable(self.min_snr), self.wavelengths, self.algo,
-                            self.scaling, self.random_seed)
+                            iterable(self.min_snr), self.wavelengths,
+                            self.spectrum, self.algo, self.scaling,
+                            self.random_seed)
 
         self.min_fluxes = flux_min
         timing(starttime)
@@ -197,7 +196,8 @@ class FluxEstimator:
         flux_max = pool_map(self.n_proc, _get_max_flux, iterable(self.n_dist),
                             self.distances, self.min_fluxes, self.fwhm,
                             self.plsc, iterable(self.max_snr), self.wavelengths,
-                            self.algo, self.scaling, self.random_seed, debug)
+                            self.spectrum, self.algo, self.scaling,
+                            self.random_seed, debug)
 
         self.max_fluxes = flux_max
         timing(starttime)
@@ -216,8 +216,8 @@ class FluxEstimator:
         print("Sampling by injecting fake companions")
         res = _sample_flux_snr(self.distances, self.fwhm, self.plsc,
                                self.n_injections, self.min_fluxes,
-                               self.max_fluxes, self.n_proc,
-                               self.random_seed, self.wavelengths, self.algo,
+                               self.max_fluxes, self.n_proc, self.random_seed,
+                               self.wavelengths, self.spectrum, self.algo,
                                self.scaling)
         self.sampled_fluxes, self.sampled_snrs = res
         timing(starttime)
@@ -345,7 +345,8 @@ class FluxEstimator:
 
 
 def _get_min_flux(i, distances, radprof, fwhm, plsc, min_snr, wavelengths=None,
-                  mode='pca', scaling='temp-standard', random_seed=42):
+                  spectrum=None, mode='pca', scaling='temp-standard',
+                  random_seed=42):
     """
     """
     d = distances[i]
@@ -354,20 +355,20 @@ def _get_min_flux(i, distances, radprof, fwhm, plsc, min_snr, wavelengths=None,
     n_ks = 3
     theta_init = random_state.randint(0, 360)
     _, snr = _get_adi_snrs(GARRPSF, GARRPA, fwhm, plsc, (fmin, d, theta_init),
-                           wavelengths, mode, n_ks, scaling)
+                           wavelengths, spectrum, mode, n_ks, scaling)
 
     while snr > min_snr:
         theta = random_state.randint(0, 360)
         f, snr = _get_adi_snrs(GARRPSF, GARRPA, fwhm, plsc, (fmin, d, theta),
-                               wavelengths, mode, n_ks, scaling)
+                               wavelengths, spectrum, mode, n_ks, scaling)
         fmin *= 0.5
 
     return fmin
 
 
 def _get_max_flux(i, distances, flux_min, fwhm, plsc, max_snr, wavelengths=None,
-                  mode='pca', scaling='temp-standard', random_seed=42,
-                  debug=False):
+                  spectrum=None, mode='pca', scaling='temp-standard',
+                  random_seed=42, debug=False):
     """
     """
     d = distances[i]
@@ -383,7 +384,8 @@ def _get_max_flux(i, distances, flux_min, fwhm, plsc, max_snr, wavelengths=None,
     while snr < max_snr:
         theta = random_state.randint(0, 360)
         _, snr = _get_adi_snrs(GARRPSF, GARRPA, fwhm, plsc, (flux, d, theta),
-                               wavelengths, mode, n_ks, scaling, debug)
+                               wavelengths, spectrum, mode, n_ks, scaling,
+                               debug)
 
         # making sure the snr increases
         if counter > 3:
@@ -408,8 +410,8 @@ def _get_max_flux(i, distances, flux_min, fwhm, plsc, max_snr, wavelengths=None,
 
 
 def _sample_flux_snr(distances, fwhm, plsc, n_injections, flux_min, flux_max,
-                     nproc=10, random_seed=42, wavelengths=None, mode='median',
-                     scaling='temp-standard'):
+                     nproc=10, random_seed=42, wavelengths=None, spectrum=None,
+                     mode='median', scaling='temp-standard'):
     """
     Sensible flux intervals depend on a combination of factors, # of frames,
     range of rotation, correlation, glare intensity.
@@ -435,17 +437,16 @@ def _sample_flux_snr(distances, fwhm, plsc, n_injections, flux_min, flux_max,
         for j in range(ninj):
             injx = xx[inds_inj[j]]
             injy = yy[inds_inj[j]]
-            cy, cx = frame_center(GARRAY[0])
-            injx -= cx
-            injy -= cy
+            injx -= frame_center(GARRAY[0])[1]
+            injy -= frame_center(GARRAY[0])[0]
             dist = np.sqrt(injx ** 2 + injy ** 2)
             theta = np.mod(np.arctan2(injy, injx) / np.pi * 180, 360)
             flux_dist_theta_all.append((fluxes_dist[j], dist, theta))
 
     # multiprocessing (pool) for each distance
     res = pool_map(nproc, _get_adi_snrs, GARRPSF, GARRPA, fwhm, plsc,
-                   iterable(flux_dist_theta_all), wavelengths, mode, n_ks,
-                   scaling)
+                   iterable(flux_dist_theta_all), wavelengths, spectrum, mode,
+                   n_ks, scaling)
 
     for i in range(len(distances)):
         flux_dist = []
@@ -460,7 +461,7 @@ def _sample_flux_snr(distances, fwhm, plsc, n_injections, flux_min, flux_max,
 
 
 def _get_adi_snrs(psf, angle_list, fwhm, plsc, flux_dist_theta_all,
-                  wavelengths=None, mode='median', n_ks=3,
+                  wavelengths=None, spectrum=None, mode='pca', n_ks=3,
                   scaling='temp-standard', debug=False):
     """ Get the mean S/N (at 3 equidistant positions) for a given flux and
     distance, on a residual frame.
@@ -469,11 +470,15 @@ def _get_adi_snrs(psf, angle_list, fwhm, plsc, flux_dist_theta_all,
     flux = flux_dist_theta_all[0]
     dist = flux_dist_theta_all[1]
 
+    # grey spectrum (same flux in all wls)
+    if spectrum is None:
+        spectrum = np.ones((GARRAY.shape[0]))
+
     snrs = []
     # 3 equidistant azimuthal positions, 1 or several K values
     for ang in [theta, theta + 120, theta + 240]:
         cube_fc, pos = cube_inject_companions(GARRAY, psf, angle_list,
-                                              flevel=flux, plsc=plsc,
+                                              flevel=flux * spectrum, plsc=plsc,
                                               rad_dists=[dist], theta=ang,
                                               verbose=False, full_output=True)
         posy, posx = pos[0]
@@ -481,10 +486,13 @@ def _get_adi_snrs(psf, angle_list, fwhm, plsc, flux_dist_theta_all,
                                           wavelengths, mode, n_ks, 'randsvd',
                                           scaling, 'median', 'opencv',
                                           'bilinear')
+        # handling the case of mode='median'
+        if isinstance(fr_temp, np.ndarray):
+            fr_temp = [fr_temp]
         snrs_ks = []
         for i in range(len(fr_temp)):
-            res = snr_ss(fr_temp[i], source_xy=(posx, posy), fwhm=fwhm,
-                         exclude_negative_lobes=True)
+            res = snr(fr_temp[i], source_xy=(posx, posy), fwhm=fwhm,
+                      exclude_negative_lobes=True)
             snrs_ks.append(res)
 
         maxsnr_ks = max(snrs_ks)
@@ -502,9 +510,9 @@ def _get_adi_snrs(psf, angle_list, fwhm, plsc, flux_dist_theta_all,
                            circle_radius=(5, dist), label=label, dpi=60)
 
     # max of mean S/N at 3 equidistant positions
-    snr = np.max(snrs)
+    snr_value = np.max(snrs)
 
-    return flux, snr
+    return flux, snr_value
 
 
 def _compute_residual_frame(cube, angle_list, radius, fwhm, wavelengths=None,
@@ -601,23 +609,3 @@ def _compute_residual_frame(cube, angle_list, radius, fwhm, wavelengths=None,
                                    verbose=False)
 
     return res_frame
-
-
-def create_synt_cube(cube, psf, ang, plsc, dist=None, theta=None, flux=None,
-                     random_seed=42, verbose=False):
-    """
-    """
-    centy_fr, centx_fr = frame_center(cube[0])
-    random_state = np.random.RandomState(random_seed)
-    if theta is None:
-        theta = random_state.randint(0, 360)
-
-    posy = dist * np.sin(np.deg2rad(theta)) + centy_fr
-    posx = dist * np.cos(np.deg2rad(theta)) + centx_fr
-    if verbose:
-        print('Theta:', theta)
-        print('Flux_inj:', flux)
-    cubefc = cube_inject_companions(cube, psf, ang, flevel=flux, plsc=plsc,
-                                    rad_dists=[dist], n_branches=1, theta=theta,
-                                    verbose=verbose)
-    return cubefc, posx, posy
