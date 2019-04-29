@@ -298,12 +298,9 @@ def svd_decomp(array, angle_list, size_patch, inrad, outrad, sca, k_list,
     """
     cube = array
     nfr, frsize, _ = cube.shape
-    ann_width = outrad - inrad
-    cent_ann = inrad + int(np.round(ann_width / 2.))
-    ann_width += size_patch + 2
-    matrix, ann_ind = prepare_matrix(cube, sca, None, mode='annular',
-                                     annulus_radius=cent_ann,
-                                     annulus_width=ann_width, verbose=False)
+    matrix, ann_ind = prepare_matrix(cube, scaling=sca, mask_center_px=None,
+                                     mode='annular', inner_radius=inrad,
+                                     outer_radius=outrad, verbose=False)
 
     V = svd_wrapper(matrix, lr_mode, k_list[-1], False, False, to_numpy=False)
     cube_residuals = []
@@ -357,12 +354,10 @@ def get_cumexpvar(cube, expvar_mode, inrad, outrad, size_patch, k_list=None,
     """
     """
     n_frames = cube.shape[0]
-    ann_width = outrad - inrad
-    cent_ann = inrad + int(np.round(ann_width / 2.))
-    ann_width += size_patch + 2
-    matrix_svd = prepare_matrix(cube, 'temp-standard', None, mode=expvar_mode,
-                                annulus_radius=cent_ann,
-                                annulus_width=ann_width, verbose=False)
+    matrix_svd = prepare_matrix(cube, scaling='temp-standard',
+                                mask_center_px=None, mode=expvar_mode,
+                                annulus_radius=inrad, annulus_width=outrad,
+                                verbose=False)
     if expvar_mode == 'annular':
         matrix_svd = matrix_svd[0]
 
