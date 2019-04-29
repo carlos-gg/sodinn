@@ -478,7 +478,8 @@ def _get_adi_snrs(psf, angle_list, fwhm, plsc, flux_dist_theta_all,
     # 3 equidistant azimuthal positions, 1 or several K values
     for ang in [theta, theta + 120, theta + 240]:
         cube_fc, pos = cube_inject_companions(GARRAY, psf, angle_list,
-                                              flevel=flux * spectrum, plsc=plsc,
+        #                                     flevel=flux * spectrum, plsc=plsc,
+                                              flevel=flux, plsc=plsc,
                                               rad_dists=[dist], theta=ang,
                                               verbose=False, full_output=True)
         posy, posx = pos[0]
