@@ -363,7 +363,7 @@ def get_cumexpvar(cube, expvar_mode, inrad, outrad, size_patch, k_list=None,
 
     U, S, V = svd_wrapper(matrix=matrix_svd, mode='lapack',
                           ncomp=min(matrix_svd.shape[0], matrix_svd.shape[1]),
-                          debug=False, verbose=False, usv=True)
+                          verbose=False, full_output=True)
 
     exp_var = (S ** 2) / (S.shape[0] - 1)
     full_var = np.sum(exp_var)
