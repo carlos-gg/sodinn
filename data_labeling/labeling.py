@@ -30,7 +30,7 @@ class DataLabeler:
     """ Data labeling for SODINN.
     """
     def __init__(self, sample_type, cube, pa, psf, radius_int=None,
-                 fwhm=4, plsc=0.01, delta_rot=0.5, patch_size=4, slice3d=True,
+                 fwhm=4, plsc=0.01, delta_rot=0.5, patch_size=2, slice3d=True,
                  high_pass='laplacian', kernel_size=5, normalization='slice',
                  min_snr=1, max_snr=3, cevr_thresh=0.99, n_ks=20,
                  kss_window=None, tss_window=None, lr_mode='eigen',
