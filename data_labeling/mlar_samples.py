@@ -361,7 +361,7 @@ def get_cumexpvar(cube, expvar_mode, inrad, outrad, size_patch, k_list=None,
     if expvar_mode == 'annular':
         matrix_svd = matrix_svd[0]
 
-    U, S, V = svd_wrapper(matrix=matrix_svd, mod='lapack',
+    U, S, V = svd_wrapper(matrix=matrix_svd, mode='lapack',
                           ncomp=min(matrix_svd.shape[0], matrix_svd.shape[1]),
                           debug=False, verbose=False, usv=True)
 
