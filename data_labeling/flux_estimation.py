@@ -472,14 +472,16 @@ def _get_adi_snrs(psf, angle_list, fwhm, plsc, flux_dist_theta_all,
 
     # grey spectrum (same flux in all wls)
     if spectrum is None:
-        spectrum = np.ones((GARRAY.shape[0]))
+        if GARRAY.ndim == 4:
+            spectrum = np.ones((GARRAY.shape[0]))
+        else:
+            spectrum = 1
 
     snrs = []
     # 3 equidistant azimuthal positions, 1 or several K values
     for ang in [theta, theta + 120, theta + 240]:
         cube_fc, pos = cube_inject_companions(GARRAY, psf, angle_list,
-        #                                     flevel=flux * spectrum, plsc=plsc,
-                                              flevel=flux, plsc=plsc,
+                                              flevel=flux * spectrum, plsc=plsc,
                                               rad_dists=[dist], theta=ang,
                                               verbose=False, full_output=True)
         posy, posx = pos[0]
