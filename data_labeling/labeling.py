@@ -1101,12 +1101,13 @@ def _pairwise_diff_residuals(array, angle_list, ann_center, fwhm, delta_rot=0.5,
 
     Parameters
     ----------
-    cube : array_like, 3d
+    array : array_like, 3d
         Input cube.
     angle_list : array_like, 1d
         Corresponding parallactic angle for each frame.
-    fwhm : float, optional
-        Known size of the FHWM in pixels to be used. Default is 4.
+    ann_center :
+    fwhm : float
+        Known size of the FHWM in pixels to be used.
     delta_rot : float, optional
         Minimum parallactic angle distance between the pairs.
     inner_radius : int, optional
@@ -1154,6 +1155,7 @@ def _pairwise_diff_residuals(array, angle_list, ann_center, fwhm, delta_rot=0.5,
 def _rotations_and_shifts(array, ang, samp_dim, border_mode, shift_amplitude,
                           imlib, interpolation, random_seed):
     """
+    ang : float
     """
     random_state = np.random.RandomState(random_seed)
     if samp_dim == 4:
