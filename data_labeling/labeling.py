@@ -696,13 +696,11 @@ class DataLabeler:
 
             print(msg0.format(index))
             print(msg1.format(self.y_plus[index]))
-            plot_frames(self.x_plus[index], maxplots=n_samples,
-                        axis=False, horsp=0.05, colorb=False, cmap=cmap,
-                        **kwargs)
+            plot_frames(self.x_plus[index], axis=False, horsp=0.05,
+                        colorbar=False, cmap=cmap, **kwargs)
             print(msg1.format(self.y_minus[index]))
-            plot_frames(self.x_minus[index], maxplots=n_samples,
-                        axis=False, horsp=0.05, colorb=False, cmap=cmap,
-                        **kwargs)
+            plot_frames(self.x_minus[index], axis=False, horsp=0.05,
+                        colorbar=False, cmap=cmap, **kwargs)
 
     def estimate_fluxes(self, algo='pca', n_injections=100, n_proc=None,
                         dpi=100):
