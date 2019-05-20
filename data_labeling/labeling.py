@@ -41,44 +41,101 @@ class DataLabeler:
 
         Parameters
         ----------
-        n_samples : int
-            For ``mlar`` it is the total number of samples (signal+noise) per
-            annulus. For ``pw**`` it is the number of iterations done
-            per annulus, so the total number of samples for the annulus is ~
-            2 * 3 * n_annuli * n_samples * n_temporal_pairwise_slices. The later
-            term has a variable value.
         sample_type : {'mlar', 'tmlar', 'tmlar4d', 'pw2d', 'pw3d}
             Type of labeled data (connected to the model to be used).
-        cube : 3d ndarray or tuple of 3d ndarrays
-        pa
-        psf
-        radius_int : int or None
+
+            * tmalr4d : Samples are made using svd method. The result samples
+            are a 5d matrix
+            (label, principal component (k), time, patch frame)
+            * mlar : Similar to tmalr4d but time dim is collapsed using np.mean
+            * tmlar : Similar to tmlar4d but k dim is collapsed using np.mean
+            * pw3d :
+            * pw2d :
+        cube : ndarray or tuple of ndarrays, 3d
+            Input cube
+        pa : ndarray or tuple of ndarrays, 1d
+            Array of corresponding parallactic angle for each frame
+        psf : ndarray or tuple of ndarrays, 1d
+            Psf of the cube(s)
+        radius_int : int or None, optional
             The initial separation [in pixels] at which the samples will be
             taken from. The default initial distance is ``2*fwhm``.
-        fwhm
-        plsc
-        delta_rot
-        patch_size : int
+        fwhm : int, optional
+            The full width at half maximum of the star of the cube(s)
+        plsc : float, optional
+            Pixel scale of the cube(s)
+        delta_rot : float, optional
+            [sample_type='pw'] Minimum parallactic angle distance between the
+            pairs
+        patch_size : int, optional
             Patch size in terms of the FWHM.
-        slice3d : bool
+        slice3d : bool, optional
             Slicing the 3d samples wrt the shortest sequence.
-        high_pass
-        kernel_size
-        normalization
-        min_snr
-        max_snr
-        cevr_thresh
-        n_ks
-        kss_window
-        tss_window
-        lr_mode
-        imlib
-        interpolation
-        n_proc
-        random_seed
-        identifier
-        dir_path
-        reload
+        high_pass : str, optional
+            ``mode`` parameter to the ``frame_filter_highpass`` function
+            Type of High-pass filtering.
+            ``laplacian``
+                applies a Laplacian fiter with kernel size defined by
+                ``kernel_size`` using the Opencv library.
+            ``laplacian-conv``
+                applies a Laplacian high-pass filter by defining a kernel (with
+                ``kernel_size``) and using the ``convolve_fft`` Astropy function
+            ``median-subt``
+                subtracts a median low-pass filtered version of the image.
+            ``gauss-subt``
+                subtracts a Gaussian low-pass filtered version of the image.
+            ``fourier-butter``
+                applies a high-pass 2D Butterworth filter in Fourier domain.
+            ``hann``
+                uses a Hann window.
+            See the documentation of the ''vip_hci.var.frame_filter_highpass''
+            function
+        kernel_size : int, optional
+            [high_pass = ``laplacian``] Size of the Laplacian kernel used in
+            ``laplacian`` mode for the high pass filter. It must be an positive
+            odd integer value.
+            See the documentation of the
+            ''vip_hci.var package.frame_filter_highpass'' function)
+        normalization, optional
+        min_snr : int, optional
+            Value used in the FluxEstimator class. Fix the minimum snr of the
+            injected fake companions. The snr is calculated using pca method.
+            See the documentation of the ''vip_hci.pca'' package)
+        max_snr : int, optional
+            Value used in the FluxEstimator class. Fix the maximum snr of the
+            injected fake companions. The snr is calculated using pca method.
+            max_snr shouldn't be to high compared to min_snr.
+            (recommanded : max_snr = min-snr + 2)
+            See the documentation of vip_hci.pca package)
+        cevr_thresh : float, optional
+            [sample_type='mlar', 'tmlar' or 'tmlar4d'] Float value between
+            0 and 1. Maximum percentage of cumulative variance ratio kept when
+            using svd method to create the k_list
+            See the documentation of the ''mlar_samples.get_mlar_patches''
+            function
+        n_ks : int, optional
+            [sample_type='mlar' or 'tmlar4d'] Size of the k dimension of the
+            patches matrix
+        kss_window : int, optional
+            [sample_type='mlar', 'tmlar' or 'tmlar4d'] Force the size of the k
+            dimension by removing samples strating with the first ones
+        tss_window : int, optional
+            [sample_type='tmlar' or 'tmlar4d'] Force the size of the time
+            dimension by removing samples strating with the first ones
+        lr_mode, optional
+        imlib : str, optional
+            See the documentation of the ``vip_hci.preproc.frame_rotate``
+            function.
+        interpolation : str, optional
+            See the documentation of the ``vip_hci.preproc.frame_rotate``
+            function.
+        n_proc : None or int, optional
+            Number of processes for parallel computing. If None the number of
+            processes will be set to (cpu_count()/2). Defaults to ``nproc=1``.
+        random_seed, optional
+        identifier, optional
+        dir_path, optional
+        reload, optional
             Used for the load method.
 
         """
