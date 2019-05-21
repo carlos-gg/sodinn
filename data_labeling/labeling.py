@@ -10,22 +10,19 @@ import os
 import tables
 import copy
 import numpy as np
+from hciplot import plot_frames
 from vip_hci.conf import time_ini, timing, time_fin
-from vip_hci.var import frame_center, prepare_matrix
-from vip_hci.conf.utils_conf import (pool_map, fixed, make_chunks)
-from vip_hci.var import cube_filter_highpass, pp_subplots, get_annulus_segments
+from vip_hci.var import frame_center
+from vip_hci.conf.utils_conf import (pool_map, iterable)
+from vip_hci.var import cube_filter_highpass, get_annulus_segments
 from vip_hci.metrics import cube_inject_companions
 from vip_hci.preproc import (check_pa_vector, cube_derotate, cube_crop_frames,
                              frame_rotate, frame_shift, frame_px_resampling,
-                             frame_crop, cube_collapse)
+                             frame_crop)
 from vip_hci.preproc.derotation import _compute_pa_thresh, _find_indices_adi
-from vip_hci.metrics import frame_quick_report
-from vip_hci.medsub import median_sub
-from vip_hci.pca import pca, svd_wrapper
 from .mlar_samples import (make_mlar_samples_ann_noise,
                            make_mlar_samples_ann_signal)
-from ..utils import (normalize_01_pw, cube_shift, create_synt_cube,
-                     close_hdf5_files)
+from ..utils import (normalize_01_pw, cube_shift, close_hdf5_files)
 from .flux_estimation import FluxEstimator
 
 
@@ -33,7 +30,7 @@ class DataLabeler:
     """ Data labeling for SODINN.
     """
     def __init__(self, sample_type, cube, pa, psf, radius_int=None,
-                 fwhm=4, plsc=0.01, delta_rot=0.5, patch_size=4, slice3d=True,
+                 fwhm=4, plsc=0.01, delta_rot=0.5, patch_size=2, slice3d=True,
                  high_pass='laplacian', kernel_size=5, normalization='slice',
                  min_snr=1, max_snr=3, cevr_thresh=0.99, n_ks=20,
                  kss_window=None, tss_window=None, lr_mode='eigen',
@@ -77,7 +74,7 @@ class DataLabeler:
         lr_mode
         imlib
         interpolation
-        nproc
+        n_proc
         random_seed
         identifier
         dir_path
@@ -443,8 +440,8 @@ class DataLabeler:
             if self.sample_type in ('pw2d', 'pw3d'):
                 print("Making new C+ samples")
                 res = pool_map(self.n_proc, self._make_andro_samples_ann_signal,
-                               i, fixed(self.distances[i]), fixed(self.flo[i]),
-                               fixed(self.fhi[i]), False, n_samp_annulus)
+                               i, iterable(self.distances[i]), iterable(self.flo[i]),
+                               iterable(self.fhi[i]), False, n_samp_annulus)
 
                 if self.sample_dim == 3 and self.slice3d:
                     self._do_slice_3d(res)
@@ -571,7 +568,7 @@ class DataLabeler:
 
             elif self.sample_type in ('pw2d', 'pw3d'):
                 negs = pool_map(self.n_proc, self._make_andro_samples_ann_noise,
-                                i, fixed(self.distances[i]), mupcu_per_annulus,
+                                i, iterable(self.distances[i]), mupcu_per_annulus,
                                 mupcube, pa_mupcube)
 
                 # list of lists of 3d ndarrays
@@ -659,32 +656,30 @@ class DataLabeler:
                 print(msg1.format(self.y_plus[index]))
                 for i in range(len(index)):
                     for j in range(self.x_plus[index[i]].shape[1]):
-                        pp_subplots(self.x_plus[index[i], ind_slices, j],
-                                    maxplots=show_n_slices, axis=False,
-                                    horsp=0.05, colorb=False, cmap=cmap,
-                                    dpi=dpi, **kwargs)
+                        plot_frames(tuple(self.x_plus[index[i], ind_slices, j]),
+                                    axis=False, horsp=0.05, colorbar=False,
+                                    cmap=cmap, dpi=dpi, **kwargs)
                     print('')
 
                 print(msg1.format(self.y_minus[index]))
                 for i in range(len(index)):
                     for j in range(self.x_minus[index[i]].shape[1]):
-                        pp_subplots(self.x_minus[index[i], ind_slices, j],
-                                    maxplots=show_n_slices, axis=False,
-                                    horsp=0.05, colorb=False, cmap=cmap,
-                                    dpi=dpi, **kwargs)
+                        plot_frames(tuple(self.x_minus[index[i], ind_slices, j]),
+                                    axis=False, horsp=0.05, colorbar=False,
+                                    cmap=cmap, dpi=dpi, **kwargs)
                     print('')
             else:
                 print(msg1.format(self.y_plus[index]))
                 for i in range(len(index)):
-                    pp_subplots(self.x_plus[index[i]][ind_slices],
-                                maxplots=show_n_slices, axis=False, horsp=0.05,
-                                colorb=False, cmap=cmap, dpi=dpi, **kwargs)
+                    plot_frames(tuple(self.x_plus[index[i]][ind_slices]),
+                                axis=False, horsp=0.05, colorbar=False,
+                                cmap=cmap, dpi=dpi, **kwargs)
 
                 print(msg1.format(self.y_minus[index]))
                 for i in range(len(index)):
-                    pp_subplots(self.x_minus[index[i]][ind_slices],
-                                maxplots=show_n_slices, axis=False, horsp=0.05,
-                                colorb=False, cmap=cmap, dpi=dpi, **kwargs)
+                    plot_frames(tuple(self.x_minus[index[i]][ind_slices]),
+                                axis=False, horsp=0.05, colorbar=False,
+                                cmap=cmap, dpi=dpi, **kwargs)
 
         elif self.sample_type == 'pw2d':
             if index is None:
@@ -701,13 +696,11 @@ class DataLabeler:
 
             print(msg0.format(index))
             print(msg1.format(self.y_plus[index]))
-            pp_subplots(self.x_plus[index], maxplots=n_samples,
-                        axis=False, horsp=0.05, colorb=False, cmap=cmap,
-                        **kwargs)
+            plot_frames(self.x_plus[index], axis=False, horsp=0.05,
+                        colorbar=False, cmap=cmap, **kwargs)
             print(msg1.format(self.y_minus[index]))
-            pp_subplots(self.x_minus[index], maxplots=n_samples,
-                        axis=False, horsp=0.05, colorb=False, cmap=cmap,
-                        **kwargs)
+            plot_frames(self.x_minus[index], axis=False, horsp=0.05,
+                        colorbar=False, cmap=cmap, **kwargs)
 
     def estimate_fluxes(self, algo='pca', n_injections=100, n_proc=None,
                         dpi=100):
@@ -867,7 +860,7 @@ class DataLabeler:
                     print("Making C- samples")
                     negs = pool_map(self.n_proc,
                                     self._make_andro_samples_ann_noise, i,
-                                    fixed(self.distances[i]))
+                                    iterable(self.distances[i]))
 
                     # list of lists of 2d or 3d ndarrays
                     if self.sample_dim == 3 and self.slice3d:
@@ -903,8 +896,8 @@ class DataLabeler:
                     print("Making C+ samples")
                     pos = pool_map(self.n_proc,
                                    self._make_andro_samples_ann_signal, i,
-                                   fixed(self.distances[i]), fixed(self.flo[i]),
-                                   fixed(self.fhi[i]), False, None)
+                                   iterable(self.distances[i]), iterable(self.flo[i]),
+                                   iterable(self.fhi[i]), False, None)
 
                     if self.sample_dim == 3 and self.slice3d:
                         self._do_slice_3d(pos)
@@ -1042,8 +1035,8 @@ class DataLabeler:
                   high_pass=str(fh5r.high_pass[0].decode()),
                   kernel_size=fh5r.kernel_size.read(),
                   normalization=str(fh5r.normalization[0].decode()),
-                  min_adi_snr=fh5r.min_adi_snr.read(),
-                  max_adi_snr=fh5r.max_adi_snr.read(),
+                  min_snr=fh5r.min_adi_snr.read(),
+                  max_snr=fh5r.max_adi_snr.read(),
                   cevr_thresh=fh5r.cevr_thresh.read(), n_ks=fh5r.n_ks.read(),
                   kss_window=kss_window, tss_window=tss_window,
                   lr_mode=str(fh5r.lr_mode[0].decode()),
@@ -1108,12 +1101,13 @@ def _pairwise_diff_residuals(array, angle_list, ann_center, fwhm, delta_rot=0.5,
 
     Parameters
     ----------
-    cube : array_like, 3d
+    array : array_like, 3d
         Input cube.
     angle_list : array_like, 1d
         Corresponding parallactic angle for each frame.
-    fwhm : float, optional
-        Known size of the FHWM in pixels to be used. Default is 4.
+    ann_center :
+    fwhm : float
+        Known size of the FHWM in pixels to be used.
     delta_rot : float, optional
         Minimum parallactic angle distance between the pairs.
     inner_radius : int, optional
@@ -1161,6 +1155,7 @@ def _pairwise_diff_residuals(array, angle_list, ann_center, fwhm, delta_rot=0.5,
 def _rotations_and_shifts(array, ang, samp_dim, border_mode, shift_amplitude,
                           imlib, interpolation, random_seed):
     """
+    ang : float
     """
     random_state = np.random.RandomState(random_seed)
     if samp_dim == 4:
@@ -1231,118 +1226,3 @@ def _concat_training_data(*args):
     y = np.concatenate(y_list, axis=0)
 
     return x, y
-
-
-def _sample_flux_snr(distances, fwhm, plsc, n_injections, flux_min, flux_max,
-                     nproc=10, random_seed=42):
-    """
-    Sensible flux intervals depend on a combination of factors, # of frames,
-    range of rotation, correlation, glare intensity.
-    """
-    starttime = time_ini()
-    frsize = int(GARRAY.shape[1])
-    ninj = n_injections
-    random_state = np.random.RandomState(random_seed)
-    flux_dist_theta_all = list()
-    snrs_list = list()
-    fluxes_list = list()
-
-    for i, d in enumerate(distances):
-        yy, xx = get_annulus_segments((frsize, frsize), d, 1, 1)[0]
-        num_patches = yy.shape[0]
-
-        fluxes_dist = random_state.uniform(flux_min[i], flux_max[i], size=ninj)
-        inds_inj = random_state.randint(0, num_patches, size=ninj)
-
-        for j in range(ninj):
-            injx = xx[inds_inj[j]]
-            injy = yy[inds_inj[j]]
-            injx -= frame_center(GARRAY[0])[1]
-            injy -= frame_center(GARRAY[0])[0]
-            dist = np.sqrt(injx ** 2 + injy ** 2)
-            theta = np.mod(np.arctan2(injy, injx) / np.pi * 180, 360)
-            flux_dist_theta_all.append((fluxes_dist[j], dist, theta))
-
-    # Multiprocessing pool
-    res = pool_map(nproc, _get_adi_snrs, GARRPSF, GARRPA, fwhm, plsc,
-                   fixed(flux_dist_theta_all))
-
-    for i in range(len(distances)):
-        flux_dist = []
-        snr_dist = []
-        for j in range(ninj):
-            flux_dist.append(res[j + (ninj * i)][0])
-            snr_dist.append(res[j + (ninj * i)][1])
-        fluxes_list.append(flux_dist)
-        snrs_list.append(snr_dist)
-
-    timing(starttime)
-    return fluxes_list, snrs_list
-
-
-def _compute_residual_frame(cube, angle_list, radius, fwhm, mode='pca', ncomp=2,
-                            svd_mode='lapack', scaling=None, collapse='median',
-                            imlib='opencv', interpolation='lanczos4'):
-    """
-    """
-    if cube.ndim == 3:
-        if mode == 'pca':
-            annulus_width = 3 * fwhm
-            data, ind = prepare_matrix(cube, scaling, mode='annular',
-                                       annulus_radius=radius, verbose=False,
-                                       annulus_width=annulus_width)
-            yy, xx = ind
-            V = svd_wrapper(data, svd_mode, ncomp, False, False)
-            transformed = np.dot(V, data.T)
-            reconstructed = np.dot(transformed.T, V)
-            residuals = data - reconstructed
-            cube_empty = np.zeros_like(cube)
-            cube_empty[:, yy, xx] = residuals
-            cube_res_der = cube_derotate(cube_empty, angle_list, imlib=imlib,
-                                         interpolation=interpolation)
-            res_frame = cube_collapse(cube_res_der, mode=collapse)
-
-        elif mode == 'median':
-            res_frame = median_sub(cube, angle_list, verbose=False)
-
-    elif cube.ndim == 4:
-        if mode == 'pca':
-            pass
-
-        elif mode == 'median':
-            res_frame = median_sub(cube, angle_list, verbose=False)
-
-    return res_frame
-
-
-def _get_adi_snrs(psf, angle_list, fwhm, plsc, flux_dist_theta_all, mode,
-                  ncomp):
-    """ Get the mean S/N (at 3 equidistant positions) for a given flux and
-    distance, on a median/PCA subtracted frame.
-    """
-    snrs = []
-    theta = flux_dist_theta_all[2]
-    flux = flux_dist_theta_all[0]
-    dist = flux_dist_theta_all[1]
-
-    # 3 equidistant azimuthal positions
-    for ang in [theta, theta + 120, theta + 240]:
-        cube_fc, cx, cy = create_synt_cube(GARRAY, psf, angle_list, plsc,
-                                           flux=flux, dist=dist, theta=ang,
-                                           verbose=False)
-        fr_temp = _compute_residual_frame(cube_fc, angle_list, dist, fwhm,
-                                          mode, ncomp, svd_mode='lapack',
-                                          scaling=None, collapse='median',
-                                          imlib='opencv',
-                                          interpolation='lanczos4')
-        res = frame_quick_report(fr_temp, fwhm, source_xy=(cx, cy),
-                                 verbose=False)
-        # mean S/N in circular aperture
-        snrs.append(np.mean(res[-1]))
-
-    # median of mean S/N at 3 equidistant positions
-    median_snr = np.median(snrs)
-    return flux, median_snr
-
-
-

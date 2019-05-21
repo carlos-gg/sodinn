@@ -4,18 +4,21 @@ discriminative models.
 """
 from __future__ import print_function, division, absolute_import
 
+import warnings
+from multiprocessing import cpu_count
+from multiprocessing import get_start_method
+
 import cupy
 # import torch
 import numpy as np
-from vip_hci.preproc import cube_derotate, cube_crop_frames, cube_derotate
-from vip_hci.var import (get_annulus_segments, reshape_matrix, prepare_matrix,
-                         frame_center, cube_filter_highpass)
-from vip_hci.pca import pca, svd_wrapper, randomized_svd_gpu
-from vip_hci.conf.utils_conf import (pool_map, fixed, make_chunks)
-from multiprocessing import Pool, cpu_count
-from multiprocessing import get_start_method
+from vip_hci.conf.utils_conf import (pool_map, iterable)
+from vip_hci.pca.svd import svd_wrapper
+from vip_hci.preproc import cube_crop_frames, cube_derotate
+from vip_hci.var import (get_annulus_segments, prepare_matrix,
+                         frame_center)
+
 from ..utils import (normalize_01, create_synt_cube, cube_move_subsample)
-import warnings
+
 warnings.filterwarnings(action='ignore', category=UserWarning)
 
 
@@ -134,7 +137,7 @@ def make_mlar_samples_ann_signal(input_array, angle_list, psf, n_samples,
         flux_dist_theta = zip(fluxes, dists, thetas)
 
         res = pool_map(nproc, _inject_FC, cube, psf, angle_list, plsc,
-                       inrad, outrad, fixed(flux_dist_theta), k_list,
+                       inrad, outrad, iterable(flux_dist_theta), k_list,
                        scaling, collapse_func, patch_size, lr_mode, interp,
                        mode)
         for m in range(n_req_inject):
@@ -295,12 +298,9 @@ def svd_decomp(array, angle_list, size_patch, inrad, outrad, sca, k_list,
     """
     cube = array
     nfr, frsize, _ = cube.shape
-    ann_width = outrad - inrad
-    cent_ann = inrad + int(np.round(ann_width / 2.))
-    ann_width += size_patch + 2
-    matrix, ann_ind = prepare_matrix(cube, sca, None, mode='annular',
-                                     annulus_radius=cent_ann,
-                                     annulus_width=ann_width, verbose=False)
+    matrix, ann_ind = prepare_matrix(cube, scaling=sca, mask_center_px=None,
+                                     mode='annular', inner_radius=inrad,
+                                     outer_radius=outrad, verbose=False)
 
     V = svd_wrapper(matrix, lr_mode, k_list[-1], False, False, to_numpy=False)
     cube_residuals = []
@@ -354,18 +354,16 @@ def get_cumexpvar(cube, expvar_mode, inrad, outrad, size_patch, k_list=None,
     """
     """
     n_frames = cube.shape[0]
-    ann_width = outrad - inrad
-    cent_ann = inrad + int(np.round(ann_width / 2.))
-    ann_width += size_patch + 2
-    matrix_svd = prepare_matrix(cube, 'temp-standard', None, mode=expvar_mode,
-                                annulus_radius=cent_ann,
-                                annulus_width=ann_width, verbose=False)
+    matrix_svd = prepare_matrix(cube, scaling='temp-standard',
+                                mask_center_px=None, mode=expvar_mode,
+                                inner_radius=inrad, outer_radius=outrad,
+                                verbose=False)
     if expvar_mode == 'annular':
         matrix_svd = matrix_svd[0]
 
-    U, S, V = svd_wrapper(matrix_svd, 'lapack', min(matrix_svd.shape[0],
-                                                    matrix_svd.shape[1]),
-                          False, False, True)
+    U, S, V = svd_wrapper(matrix=matrix_svd, mode='lapack',
+                          ncomp=min(matrix_svd.shape[0], matrix_svd.shape[1]),
+                          verbose=False, full_output=True)
 
     exp_var = (S ** 2) / (S.shape[0] - 1)
     full_var = np.sum(exp_var)
