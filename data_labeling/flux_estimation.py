@@ -476,7 +476,7 @@ def _get_adi_snrs(psf, angle_list, fwhm, plsc, flux_dist_theta_all,
             spectrum = np.ones((GARRAY.shape[0]))
         else:
             spectrum = 1
-
+            
     snrs = []
     # 3 equidistant azimuthal positions, 1 or several K values
     for ang in [theta, theta + 120, theta + 240]:
@@ -612,3 +612,4 @@ def _compute_residual_frame(cube, angle_list, radius, fwhm, wavelengths=None,
                                    verbose=False)
 
     return res_frame
+
