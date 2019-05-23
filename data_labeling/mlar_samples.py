@@ -286,8 +286,7 @@ def _inject_FC(cube, psf, angle_list, plsc, inrad, outrad, flux_dist_theta,
                                 lr_mode=lr_mode, nproc=1, interp=interp,
                                 mode=mode)
     patch = cube_crop_frames(np.array(cube_residuals), patch_size,
-                             xy=(cox, coy),
-                             verbose=False)
+                             xy=(cox, coy), verbose=False)
     return patch
 
 
@@ -298,9 +297,13 @@ def svd_decomp(array, angle_list, size_patch, inrad, outrad, sca, k_list,
     """
     cube = array
     nfr, frsize, _ = cube.shape
+    half_sizep = np.ceil(size_patch / 2.)
+    inradius = inrad - half_sizep - 1
+    outradius = outrad + half_sizep + 1
+
     matrix, ann_ind = prepare_matrix(cube, scaling=sca, mask_center_px=None,
-                                     mode='annular', inner_radius=inrad,
-                                     outer_radius=outrad, verbose=False)
+                                     mode='annular', inner_radius=inradius,
+                                     outer_radius=outradius, verbose=False)
 
     V = svd_wrapper(matrix, lr_mode, k_list[-1], False, False, to_numpy=False)
     cube_residuals = []
@@ -354,9 +357,13 @@ def get_cumexpvar(cube, expvar_mode, inrad, outrad, size_patch, k_list=None,
     """
     """
     n_frames = cube.shape[0]
+    half_sizep = np.ceil(size_patch / 2.)
+    inradius = inrad - half_sizep - 1
+    outradius = outrad + half_sizep + 1
+
     matrix_svd = prepare_matrix(cube, scaling='temp-standard',
                                 mask_center_px=None, mode=expvar_mode,
-                                inner_radius=inrad, outer_radius=outrad,
+                                inner_radius=inradius, outer_radius=outradius,
                                 verbose=False)
     if expvar_mode == 'annular':
         matrix_svd = matrix_svd[0]

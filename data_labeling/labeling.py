@@ -838,7 +838,7 @@ class DataLabeler:
                     print("Making C+ and C- MLAR samples for each annulus:")
                     distances = self.distances[i]
                     for d in range(len(distances)):
-                        inrad = distances[d]
+                        inrad = distances[d] - int(np.ceil(width / 2.))
                         outrad = inrad + width
 
                         if i == 0 and d == 0:
