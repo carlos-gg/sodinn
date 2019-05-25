@@ -514,7 +514,7 @@ class DataLabeler:
 
                 ncplus_samples = 0
                 for d in range(len(distances)):
-                    inrad = distances[d]
+                    inrad = distances[d] - int(np.ceil(width / 2.))
                     outrad = inrad + width
                     force_klen = True  # we enforce the same number of k slices
                     f = make_mlar_samples_ann_signal
@@ -603,7 +603,7 @@ class DataLabeler:
 
             if self.sample_type in ('mlar', 'tmlar', 'tmlar4d'):
                 for d in range(len(distances)):
-                    inrad = distances[d]
+                    inrad = distances[d] - int(np.ceil(width / 2.))
                     outrad = inrad + width
                     force_klen = True  # we enforce the same number of k slices
                     f0 = make_mlar_samples_ann_noise
