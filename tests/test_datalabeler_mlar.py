@@ -4,10 +4,8 @@ Tests for DataLabeler using mlar sample type
 
 import copy
 from ..data_labeling.labeling import DataLabeler
-from pytest import fixture
 
 
-@fixture
 def test_dataLabeler_mlar(example_dataset_adi):
     """
     Parameters
