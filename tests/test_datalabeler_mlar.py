@@ -1,9 +1,10 @@
 """
-Tests for DataLabeler using mlar sample type
+Tests for DataLabeler using different sample type
 """
 
 import copy
 from ..data_labeling.labeling import DataLabeler
+from pytest import fixture
 
 
 def test_dataLabeler_mlar(example_dataset_adi):
@@ -16,7 +17,7 @@ def test_dataLabeler_mlar(example_dataset_adi):
 
     dataset = copy.copy(example_dataset_adi)
 
-    radius_int = round(dataset.cube.shape[2]/8)
+    radius_int = round(dataset.fwhm*2)
 
     print("distances taken at min radius : {}".format(radius_int))
 
@@ -33,7 +34,7 @@ def test_dataLabeler_mlar(example_dataset_adi):
         raise
 
     try:
-        labeler.estimate_fluxes()
+        labeler.estimate_fluxes(plot=False)
     except TypeError:
         raise
 
