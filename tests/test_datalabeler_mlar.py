@@ -2,10 +2,12 @@
 Tests for DataLabeler using mlar sample type
 """
 
-from data_labeling import DataLabeler
 import copy
+from data_labeling import DataLabeler
+from pytest import fixture
 
 
+@fixture(scope="module")
 def test_dataLabeler_mlar(example_dataset_adi):
     """
     Parameters
