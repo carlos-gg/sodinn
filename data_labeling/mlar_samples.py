@@ -141,11 +141,6 @@ def make_mlar_samples_ann_signal(input_array, angle_list, psf, n_samples,
                        scaling, collapse_func, patch_size, lr_mode, interp,
                        mode)
 
-        print("res : {}".format(np.array(res).shape))
-        print("X_ones : {}".format(X_ones_array.shape))
-
-        print("Patch size : ({}, {})".format(patch_size, patch_size))
-
         for m in range(n_req_inject):
             X_ones_array[m] = res[m]
 
