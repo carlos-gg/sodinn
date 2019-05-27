@@ -120,7 +120,7 @@ def make_mlar_samples_ann_signal(input_array, angle_list, psf, n_samples,
             # one patch residuals per injection
             X_ones_array[m] = cube_crop_frames(np.asarray(cube_residuals),
                                                patch_size, xy=(cox, coy),
-                                               verbose=False)
+                                               verbose=False, force=True)
 
     elif nproc > 1:
         if lr_mode in ['cupy', 'randcupy', 'eigencupy']:
