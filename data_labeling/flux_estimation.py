@@ -222,53 +222,54 @@ class FluxEstimator:
         self.sampled_fluxes, self.sampled_snrs = res
         timing(self.starttime)
 
-    def run(self, dpi=100):
+    def run(self, plot=True, dpi=100):
         """ Obtaining the flux vs S/N relationship.
 
+        Parameters
+        ----------
+        plot : bool, optional
+            Whether to plot the estimated fluxes for each distance and the S/N
+            vs flux relationship.
         dpi : int, optional
             DPI of the figures.
         """
         if not self.sampled_fluxes or not self.sampled_snrs:
             self.sampling()
 
-        nsubplots = len(self.distances)
-        ncols = min(4, nsubplots)
+        if plot:
+            nsubplots = len(self.distances)
+            ncols = min(4, nsubplots)
 
-        if nsubplots > 1 and nsubplots % 2 != 0:
-            nsubplots -= 1
+            if nsubplots > 1 and nsubplots % 2 != 0:
+                nsubplots -= 1
 
-        if nsubplots < 3:
-            figsize = (10, 2)
-            if nsubplots == 2:
-                figsizex = figsize[0] * 0.66
-            elif nsubplots == 1:
-                figsizex = figsize[0] * 0.33
-            nrows = 1
-        else:
-            if nsubplots <= 8:
-                figsize = (10, 4)
+            if nsubplots < 3:
+                figsize = (10, 2)
+                if nsubplots == 2:
+                    figsizex = figsize[0] * 0.66
+                elif nsubplots == 1:
+                    figsizex = figsize[0] * 0.33
+                nrows = 1
             else:
-                figsize = (10, 6)
-            figsizex = figsize[0]
-            nrows = int(nsubplots / ncols) + 1
+                if nsubplots <= 8:
+                    figsize = (10, 4)
+                else:
+                    figsize = (10, 6)
+                figsizex = figsize[0]
+                nrows = int(nsubplots / ncols) + 1
 
-        fig, axs = plt.subplots(nrows, ncols, figsize=(figsizex, figsize[1]),
-                                dpi=dpi, sharey='row')
-        fig.subplots_adjust(wspace=0.05, hspace=0.3)
-        if isinstance(axs, np.ndarray):
-            axs = axs.ravel()
+            fig, axs = plt.subplots(nrows, ncols, dpi=dpi, sharey='row',
+                                    figsize=(figsizex, figsize[1]))
+            fig.subplots_adjust(wspace=0.05, hspace=0.3)
+            if isinstance(axs, np.ndarray):
+                axs = axs.ravel()
+
         fhi = list()
         flo = list()
 
         print("Interpolating the Flux vs S/N function")
         # Regression for each distance
         for i, d in enumerate(self.distances):
-            plotvlines = [self.min_snr[i], self.max_snr[i]]
-            if isinstance(axs, np.ndarray):
-                axis = axs[i]
-            else:
-                axis = axs
-
             fluxes = np.array(self.sampled_fluxes[i])
             snrs = np.array(self.sampled_snrs[i])
             mask = np.where(snrs > 0.1)
@@ -285,25 +286,34 @@ class FluxEstimator:
             fhi.append(flux_for_higsnr)
             flo.append(flux_for_lowsnr)
 
-            # Figure of flux vs s/n
-            axis.xaxis.set_tick_params(labelsize=6)
-            axis.yaxis.set_tick_params(labelsize=6)
-            axis.plot(fluxes, snrs, '.', alpha=0.2, markersize=4)
-            axis.plot(fluxes_pred, snrs_pred, '-', alpha=1, color='orangered')
-            axis.grid(which='major', alpha=0.3)
-            axis.set_xlim(0)
-            for l in plotvlines:
-                axis.plot((0, max(fluxes)), (l, l), ':', color='darksalmon')
-            axis = fig.add_subplot(111, frame_on=False)
-            axis.set_xticks([])
-            axis.set_yticks([])
-            axis.set_xlabel('Fakecomp flux scaling', labelpad=25, size=8)
-            axis.set_ylabel('Signal to noise ratio', labelpad=25, size=8)
+            if plot:
+                plotvlines = [self.min_snr[i], self.max_snr[i]]
+                if isinstance(axs, np.ndarray):
+                    axis = axs[i]
+                else:
+                    axis = axs
 
-        if isinstance(axs, np.ndarray):
-            for i in range(len(self.distances), len(axs)):
-                axs[i].axis('off')
-        plt.show()
+                # Figure of flux vs s/n
+                axis.xaxis.set_tick_params(labelsize=6)
+                axis.yaxis.set_tick_params(labelsize=6)
+                axis.plot(fluxes, snrs, '.', alpha=0.2, markersize=4)
+                axis.plot(fluxes_pred, snrs_pred, '-', alpha=1,
+                          color='orangered')
+                axis.grid(which='major', alpha=0.3)
+                axis.set_xlim(0)
+                for l in plotvlines:
+                    axis.plot((0, max(fluxes)), (l, l), ':', color='darksalmon')
+                axis = fig.add_subplot(111, frame_on=False)
+                axis.set_xticks([])
+                axis.set_yticks([])
+                axis.set_xlabel('Fakecomp flux scaling', labelpad=25, size=8)
+                axis.set_ylabel('Signal to noise ratio', labelpad=25, size=8)
+
+        if plot:
+            if isinstance(axs, np.ndarray):
+                for i in range(len(self.distances), len(axs)):
+                    axs[i].axis('off')
+            plt.show()
 
         flo = np.array(flo).flatten()
         fhi = np.array(fhi).flatten()
@@ -322,8 +332,9 @@ class FluxEstimator:
         self.estimated_fluxes_low = flo
 
         # figure with fluxes as a function of the separation
-        if len(self.distances) > 1 and isinstance(self.min_snr, (float, int)) \
-                and isinstance(self.max_snr, (float, int)):
+        if plot and len(self.distances) > 1 and \
+                isinstance(self.min_snr, (float, int)) and \
+                isinstance(self.max_snr, (float, int)):
             plt.figure(figsize=(10, 4), dpi=dpi)
             plt.plot(self.distances, self.radprof, '--', alpha=0.8,
                      color='gray', lw=2, label='average radial profile')
