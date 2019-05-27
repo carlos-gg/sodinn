@@ -3,7 +3,7 @@ Tests for DataLabeler using mlar sample type
 """
 
 import copy
-from data_labeling import DataLabeler
+from data_labeling.labeling import DataLabeler
 from pytest import fixture
 
 
@@ -13,7 +13,7 @@ def test_dataLabeler_mlar(example_dataset_adi):
     Parameters
     ----------
     example_dataset_adi : fixture
-        Taken automatically from
+        Taken automatically from ``conftest.py``.
     """
 
     dataset = copy.copy(example_dataset_adi)
