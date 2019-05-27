@@ -3,7 +3,7 @@ Tests for DataLabeler using mlar sample type
 """
 
 import copy
-from data_labeling.labeling import DataLabeler
+from ..data_labeling.labeling import DataLabeler
 from pytest import fixture
 
 
