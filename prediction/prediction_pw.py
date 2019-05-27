@@ -35,7 +35,7 @@ def prepare_patches(cube, angle_list, xy, fwhm, patch_size_px, delta_rot=0.5,
     res_der = cube_derotate(res, angle_list, imlib=imlib,
                             interpolation=interpolation)
     res_der_crop = cube_crop_frames(res_der, patch_size_px, xy=xy,
-                                    verbose=False)
+                                    verbose=False, force=True)
 
     patches = normalize_01_pw(res_der_crop, normalization)
 

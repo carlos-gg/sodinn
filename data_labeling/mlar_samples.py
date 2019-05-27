@@ -292,7 +292,7 @@ def _inject_FC(cube, psf, angle_list, plsc, inrad, outrad, flux_dist_theta,
                                 lr_mode=lr_mode, nproc=1, interp=interp,
                                 mode=mode)
     patch = cube_crop_frames(np.array(cube_residuals), patch_size,
-                             xy=(cox, coy), verbose=False)
+                             xy=(cox, coy), verbose=False, force=True)
     return patch
 
 
