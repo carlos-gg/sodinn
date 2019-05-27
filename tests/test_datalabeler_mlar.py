@@ -48,9 +48,4 @@ def test_dataLabeler_mlar(example_dataset_adi):
     except TypeError:
         raise
 
-    try:
-        labeler.inspect_samples()
-    except TypeError:
-        raise
-
     return True
