@@ -26,7 +26,7 @@ def test_dataLabeler_mlar(example_dataset_adi):
 
     try:
         labeler = DataLabeler('mlar', dataset.cube, dataset.angles,
-                              dataset.psf, radius_int=radius_int,
+                              dataset.psf, radius_int=15,
                               fwhm=dataset.fwhm, plsc=0.02719,
                               min_snr=3, max_snr=5, n_proc=2)
     except TypeError:
