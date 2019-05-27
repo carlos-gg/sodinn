@@ -16,9 +16,9 @@ def test_dataLabeler_mlar(example_dataset_adi):
 
     dataset = copy.copy(example_dataset_adi)
 
-    #radius_int = dataset.cube.shape[2]/2
+    # radius_int = dataset.cube.shape[2]/2
 
-    print("distances taken at min radius : {}".format(radius_int))
+    # print("distances taken at min radius : {}".format(radius_int))
 
     if dataset.cube.shape[0] > 80:
         dataset.cube = dataset.cube[0:80]
