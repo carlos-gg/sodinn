@@ -235,7 +235,8 @@ def make_mlar_samples_ann_noise(input_array, angle_list, cevr_thresh, n_ks,
     for i in range(num_patches):
         xy = (int(xx[i]), int(yy[i]))
         patches_list.append(cube_crop_frames(cube_residuals_negang,
-                                             patch_size, xy=xy, verbose=False))
+                                             patch_size, xy=xy, verbose=False,
+                                             force=True))
 
     # For MLAR and TMLAR X_zeros_array is 4d:
     # [n_patches_annulus, n_k_list || n_time_steps, patch_size, patch_size]
