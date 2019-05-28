@@ -7,26 +7,34 @@ from ..data_labeling.labeling import DataLabeler
 from pytest import fixture
 
 
-def test_dataLabeler_mlar(example_dataset_adi):
+def test_dataLabeler(example_dataset_adi):
     """
-    Parameters
-    ----------
-    example_dataset_adi : fixture
-        Taken automatically from ``conftest.py``.
-    """
+        Parameters
+        ----------
+        example_dataset_adi : fixture
+            Taken automatically from ``conftest.py``.
+        """
 
     dataset = copy.copy(example_dataset_adi)
-
-    radius_int = round(dataset.fwhm*2)
-
-    print("distances taken at min radius : {}".format(radius_int))
 
     if dataset.cube.shape[0] > 80:
         dataset.cube = dataset.cube[0:80]
         dataset.angles = dataset.angles[0:80]
 
+    assert test_dataLabeler_type(dataset, "mlar")
+    assert test_dataLabeler_type(dataset, "tmlar")
+    assert test_dataLabeler_type(dataset, "tmlar4d")
+
+    return True
+
+
+@fixture(scope='function')
+def test_dataLabeler_type(dataset, sample_type):
+
+    radius_int = round(dataset.fwhm * 2)
+
     try:
-        labeler = DataLabeler('mlar', dataset.cube, dataset.angles,
+        labeler = DataLabeler(sample_type, dataset.cube, dataset.angles,
                               dataset.psf, radius_int=radius_int,
                               fwhm=dataset.fwhm, plsc=0.02719,
                               min_snr=3, max_snr=5, n_proc=2)
