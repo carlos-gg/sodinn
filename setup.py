@@ -17,9 +17,6 @@ def resource(*args):
 # parse_requirements() returns generator of pip.req.InstallRequirement objects
 reqs = parse_requirements(resource('requirements.txt'), session=False)
 reqs = [str(ir.req) for ir in reqs]
-reqs_dev = parse_requirements(resource('requirements-dev.txt'), session=False)
-reqs_dev = [str(ir.req) for ir in reqs_dev]
-
 
 with open(resource('sodinn', '__init__.py')) as version_file:
     version_file = version_file.read()
@@ -32,7 +29,10 @@ with open(resource('README.md')) as readme_file:
 
 setup(
     name='sodinn',
-    packages=['sodinn'],
+    packages=['sodinn',
+              'sodinn.data_labeling',
+              'sodinn.models',
+              'sodinn.prediction'],
     version=VERSION,
     description='Supervised detection of exoplanets',
     long_description=README,
