@@ -5,6 +5,8 @@ Tests for DataLabeler using different sample type
 import copy
 from ..data_labeling.labeling import DataLabeler
 from pytest import fixture
+from vip_hci.preproc import frame_crop
+from numpy import corrcoef
 
 
 def test_dataLabeler(example_dataset_adi):
@@ -21,9 +23,38 @@ def test_dataLabeler(example_dataset_adi):
         dataset.cube = dataset.cube[0:80]
         dataset.angles = dataset.angles[0:80]
 
-    assert test_dataLabeler_type(dataset, "mlar")
-    assert test_dataLabeler_type(dataset, "tmlar")
-    assert test_dataLabeler_type(dataset, "tmlar4d")
+    psf_croped = frame_crop(dataset.psf, dataset.fwhm*2+1, force=True,
+                            verbose=False)
+
+    print("psf shape : {}".format(psf_croped.shape))
+
+    try:
+        labeler_mlar = test_dataLabeler_type(dataset, "mlar")
+    except TypeError:
+        raise
+
+    for index in range(labeler_mlar.x_plus.shape[0]):
+        for k in range(labeler_mlar.x_plus.shape[1]):
+            frame = labeler_mlar.x_plus[index, k]
+            frame_corr = corrcoef(frame, psf_croped)
+            print(frame_corr)
+
+    try:
+        labeler_tmlar = test_dataLabeler_type(dataset, "tmlar")
+    except TypeError:
+        raise
+    try:
+        labeler_tmlar4d = test_dataLabeler_type(dataset, "tmlar4d")
+    except TypeError:
+        raise
+    try:
+        labeler_pw2d = test_dataLabeler_type(dataset, "pw2d")
+    except TypeError:
+        raise
+    try:
+        labeler_pw3d = test_dataLabeler_type(dataset, "pw3d")
+    except TypeError:
+        raise
 
     return True
 
@@ -56,4 +87,4 @@ def test_dataLabeler_type(dataset, sample_type):
     except TypeError:
         raise
 
-    return True
+    return labeler
