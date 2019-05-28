@@ -1,5 +1,7 @@
 vip_hci
 hciplot
+astropy
+pytest
 keras
 scikit-image
 scipy
