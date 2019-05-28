@@ -1,3 +1,5 @@
+astropy
+pytest
 keras
 tensorflow
 bottleneck

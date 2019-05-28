@@ -120,7 +120,7 @@ def make_mlar_samples_ann_signal(input_array, angle_list, psf, n_samples,
             # one patch residuals per injection
             X_ones_array[m] = cube_crop_frames(np.asarray(cube_residuals),
                                                patch_size, xy=(cox, coy),
-                                               verbose=False)
+                                               verbose=False, force=True)
 
     elif nproc > 1:
         if lr_mode in ['cupy', 'randcupy', 'eigencupy']:
@@ -140,6 +140,7 @@ def make_mlar_samples_ann_signal(input_array, angle_list, psf, n_samples,
                        inrad, outrad, iterable(flux_dist_theta), k_list,
                        scaling, collapse_func, patch_size, lr_mode, interp,
                        mode)
+
         for m in range(n_req_inject):
             X_ones_array[m] = res[m]
 
@@ -234,7 +235,8 @@ def make_mlar_samples_ann_noise(input_array, angle_list, cevr_thresh, n_ks,
     for i in range(num_patches):
         xy = (int(xx[i]), int(yy[i]))
         patches_list.append(cube_crop_frames(cube_residuals_negang,
-                                             patch_size, xy=xy, verbose=False))
+                                             patch_size, xy=xy, verbose=False,
+                                             force=True))
 
     # For MLAR and TMLAR X_zeros_array is 4d:
     # [n_patches_annulus, n_k_list || n_time_steps, patch_size, patch_size]
@@ -286,7 +288,7 @@ def _inject_FC(cube, psf, angle_list, plsc, inrad, outrad, flux_dist_theta,
                                 lr_mode=lr_mode, nproc=1, interp=interp,
                                 mode=mode)
     patch = cube_crop_frames(np.array(cube_residuals), patch_size,
-                             xy=(cox, coy), verbose=False)
+                             xy=(cox, coy), verbose=False, force=True)
     return patch
 
 
