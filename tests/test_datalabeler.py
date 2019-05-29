@@ -23,7 +23,9 @@ def test_dataLabeler(example_dataset_adi):
         dataset.cube = dataset.cube[0:80]
         dataset.angles = dataset.angles[0:80]
 
-    psf_croped = frame_crop(dataset.psf, round(dataset.fwhm)*2+1, force=True,
+    print(int(round(dataset.fwhm))*2+1)
+
+    psf_croped = frame_crop(dataset.psf, int(round(dataset.fwhm))*2+1, force=True,
                             verbose=False)
 
     print("psf shape : {}".format(psf_croped.shape))
