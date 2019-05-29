@@ -306,7 +306,7 @@ class Predictor:
         if print_info:
             self.print_info()
 
-        plot_frames(self.pmap, log=(False, True),
+        plot_frames((self.pmap, self.pmap), log=(False, True),
                     vmin=(0, vmin_log), vmax=(1, 1),
                     label=('Probmap', 'Probmap (logscale)'),
                     label_size=labelsize, circle_radius=circlerad,
