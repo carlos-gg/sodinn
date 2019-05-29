@@ -306,13 +306,13 @@ class Predictor:
         if print_info:
             self.print_info()
 
-        plot_frames((tuple(self.pmap), tuple(self.pmap)), log=(False, True),
+        plot_frames((self.pmap, self.pmap), log=(False, True),
                     vmin=(0, vmin_log), vmax=(1, 1),
                     label=('Probmap', 'Probmap (logscale)'),
-                    labelsize=labelsize, circlerad=circlerad,
-                    circlecolor=circlecolor, circlealpha=circlealpha,
-                    showcent=showcent, grid=grid, gridalpha=gridalpha,
-                    gridspacing=gridspacing, **kwargs)
+                    label_size=labelsize, circle_radius=circlerad,
+                    circle_color=circlecolor, circle_alpha=circlealpha,
+                    show_center=showcent, grid=grid, grid_alpha=gridalpha,
+                    grid_spacing=gridspacing, **kwargs)
 
     def run(self, n_proc=30, chunks_per_proc=2, cube=None, pa=None,
             cube_index=0, verbose=True):

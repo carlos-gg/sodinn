@@ -198,7 +198,7 @@ def inspect_patch_multik(model, cube, angle_list, k_list, inrad=10, outrad=14,
 
     if plot:
         plot_frames(tuple(np.squeeze(patch_reshaped)), cmap='viridis',
-                    axis=False, dpi=dpi, colorb=False)
+                    axis=False, dpi=dpi, colorbar=False)
     print('Proba :', proba, '\n')
 
     return patch, proba
