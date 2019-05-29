@@ -38,7 +38,7 @@ def test_dataLabeler(example_dataset_adi):
             frame = labeler_mlar.x_plus[index, k]
             frame_corr = corrcoef(frame, psf_croped)
             print(frame_corr)
-
+    """
     try:
         labeler_tmlar = dataLabeler_type_test(dataset, "tmlar")
     except TypeError:
@@ -55,6 +55,7 @@ def test_dataLabeler(example_dataset_adi):
         labeler_pw3d = dataLabeler_type_test(dataset, "pw3d")
     except TypeError:
         raise
+    """
 
     return True
 
