@@ -23,15 +23,13 @@ def test_dataLabeler(example_dataset_adi):
         dataset.cube = dataset.cube[0:80]
         dataset.angles = dataset.angles[0:80]
 
-    print(int(round(dataset.fwhm))*2+1)
-
     psf_croped = frame_crop(dataset.psf, int(round(dataset.fwhm))*2+1, force=True,
                             verbose=False)
 
     print("psf shape : {}".format(psf_croped.shape))
 
     try:
-        labeler_mlar = test_dataLabeler_type(dataset, "mlar")
+        labeler_mlar = dataLabeler_type_test(dataset, "mlar")
     except TypeError:
         raise
 
@@ -42,27 +40,26 @@ def test_dataLabeler(example_dataset_adi):
             print(frame_corr)
 
     try:
-        labeler_tmlar = test_dataLabeler_type(dataset, "tmlar")
+        labeler_tmlar = dataLabeler_type_test(dataset, "tmlar")
     except TypeError:
         raise
     try:
-        labeler_tmlar4d = test_dataLabeler_type(dataset, "tmlar4d")
+        labeler_tmlar4d = dataLabeler_type_test(dataset, "tmlar4d")
     except TypeError:
         raise
     try:
-        labeler_pw2d = test_dataLabeler_type(dataset, "pw2d")
+        labeler_pw2d = dataLabeler_type_test(dataset, "pw2d")
     except TypeError:
         raise
     try:
-        labeler_pw3d = test_dataLabeler_type(dataset, "pw3d")
+        labeler_pw3d = dataLabeler_type_test(dataset, "pw3d")
     except TypeError:
         raise
 
     return True
 
 
-@fixture(scope='function')
-def test_dataLabeler_type(dataset, sample_type):
+def dataLabeler_type_test(dataset, sample_type):
 
     radius_int = round(dataset.fwhm * 2)
 
