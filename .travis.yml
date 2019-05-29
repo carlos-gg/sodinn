@@ -4,7 +4,6 @@ sudo: required
 dist: xenial # no 3.7 on 14.04 Trusty
 
 python:
-  - 3.6
   - 3.7
 
 # command to install dependencies
@@ -13,4 +12,4 @@ install:
 
 # command to run tests + coverage
 script:
-  - pytest --cov=vip_hci -v
+  - pytest --cov=sodinn -v
