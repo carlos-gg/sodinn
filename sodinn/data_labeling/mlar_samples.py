@@ -17,7 +17,7 @@ from vip_hci.preproc import cube_crop_frames, cube_derotate
 from vip_hci.var import (get_annulus_segments, prepare_matrix,
                          frame_center)
 
-from sodinn.utils import (normalize_01, create_synt_cube, cube_move_subsample)
+from ..utils import (normalize_01, create_synt_cube, cube_move_subsample)
 
 warnings.filterwarnings(action='ignore', category=UserWarning)
 

@@ -12,7 +12,7 @@ from vip_hci.preproc import (cube_crop_frames)
 from vip_hci.conf import time_ini, timing
 from vip_hci.var import (get_annulus_segments)
 from vip_hci.conf.utils_conf import (pool_map, iterable)
-from sodinn.utils import normalize_01, create_feature_matrix, cube_move_subsample
+from ..utils import normalize_01, create_feature_matrix, cube_move_subsample
 from ..data_labeling import svd_decomp, get_cumexpvar
 
 
