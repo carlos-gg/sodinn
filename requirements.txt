@@ -10,7 +10,5 @@ pandas
 numpy
 bottleneck
 tables
-cupy
 tensorflow
-tensorflow-gpu
 livelossplot
