@@ -1,4 +1,4 @@
-vip_hci
+git+git://github.com/vortex-exoplanet/VIP.git
 hciplot
 astropy
 pytest
