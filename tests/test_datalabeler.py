@@ -4,18 +4,17 @@ Tests for DataLabeler using different sample type
 
 import copy
 from ..data_labeling.labeling import DataLabeler
-from pytest import fixture
 from vip_hci.preproc import frame_crop
 from numpy import corrcoef
 
 
-def test_dataLabeler(example_dataset_adi):
+def test_dataLabeler_mlar(example_dataset_adi):
     """
-        Parameters
-        ----------
-        example_dataset_adi : fixture
-            Taken automatically from ``conftest.py``.
-        """
+    Parameters
+    ----------
+    example_dataset_adi : fixture
+        Taken automatically from ``conftest.py``.
+    """
 
     dataset = copy.copy(example_dataset_adi)
 
@@ -23,39 +22,113 @@ def test_dataLabeler(example_dataset_adi):
         dataset.cube = dataset.cube[0:80]
         dataset.angles = dataset.angles[0:80]
 
-    psf_croped = frame_crop(dataset.psf, int(round(dataset.fwhm))*2+1, force=True,
-                            verbose=False)
-
-    print("psf shape : {}".format(psf_croped.shape))
+    psf_croped = frame_crop(dataset.psf, int(round(dataset.fwhm))*2+1,
+                            force=True, verbose=False)
 
     try:
         labeler_mlar = dataLabeler_type_test(dataset, "mlar")
     except TypeError:
         raise
 
-    for index in range(labeler_mlar.x_plus.shape[0]):
-        for k in range(labeler_mlar.x_plus.shape[1]):
-            frame = labeler_mlar.x_plus[index, k]
-            frame_corr = corrcoef(frame, psf_croped)
-            print(frame_corr)
+    return True
+
+
+def test_dataLabeler_tmlar(example_dataset_adi):
     """
-    try:
-        labeler_tmlar = dataLabeler_type_test(dataset, "tmlar")
-    except TypeError:
-        raise
-    try:
-        labeler_tmlar4d = dataLabeler_type_test(dataset, "tmlar4d")
-    except TypeError:
-        raise
-    try:
-        labeler_pw2d = dataLabeler_type_test(dataset, "pw2d")
-    except TypeError:
-        raise
-    try:
-        labeler_pw3d = dataLabeler_type_test(dataset, "pw3d")
-    except TypeError:
-        raise
+    Parameters
+    ----------
+    example_dataset_adi : fixture
+        Taken automatically from ``conftest.py``.
     """
+
+    dataset = copy.copy(example_dataset_adi)
+
+    if dataset.cube.shape[0] > 80:
+        dataset.cube = dataset.cube[0:80]
+        dataset.angles = dataset.angles[0:80]
+
+    psf_croped = frame_crop(dataset.psf, int(round(dataset.fwhm)) * 2 + 1,
+                            force=True, verbose=False)
+
+    try:
+        labeler_mlar = dataLabeler_type_test(dataset, "tmlar")
+    except TypeError:
+        raise
+
+    return True
+
+
+def test_dataLabeler_tmlar4d(example_dataset_adi):
+    """
+    Parameters
+    ----------
+    example_dataset_adi : fixture
+        Taken automatically from ``conftest.py``.
+    """
+
+    dataset = copy.copy(example_dataset_adi)
+
+    if dataset.cube.shape[0] > 80:
+        dataset.cube = dataset.cube[0:80]
+        dataset.angles = dataset.angles[0:80]
+
+    psf_croped = frame_crop(dataset.psf, int(round(dataset.fwhm)) * 2 + 1,
+                            force=True, verbose=False)
+
+    try:
+        labeler_mlar = dataLabeler_type_test(dataset, "tmlar4d")
+    except TypeError:
+        raise
+
+    return True
+
+
+def test_dataLabeler_pw3d(example_dataset_adi):
+    """
+    Parameters
+    ----------
+    example_dataset_adi : fixture
+        Taken automatically from ``conftest.py``.
+    """
+
+    dataset = copy.copy(example_dataset_adi)
+
+    if dataset.cube.shape[0] > 80:
+        dataset.cube = dataset.cube[0:80]
+        dataset.angles = dataset.angles[0:80]
+
+    psf_croped = frame_crop(dataset.psf, int(round(dataset.fwhm)) * 2 + 1,
+                            force=True, verbose=False)
+
+    try:
+        labeler_mlar = dataLabeler_type_test(dataset, "pw3d")
+    except TypeError:
+        raise
+
+    return True
+
+
+def test_dataLabeler_pw2d(example_dataset_adi):
+    """
+    Parameters
+    ----------
+    example_dataset_adi : fixture
+        Taken automatically from ``conftest.py``.
+    """
+
+    dataset = copy.copy(example_dataset_adi)
+
+    if dataset.cube.shape[0] > 80:
+        dataset.cube = dataset.cube[0:80]
+        dataset.angles = dataset.angles[0:80]
+
+    psf_croped = frame_crop(dataset.psf, int(round(dataset.fwhm)) * 2 + 1,
+                            force=True, verbose=False)
+
+    try:
+        labeler_mlar = dataLabeler_type_test(dataset, "pw2d")
+    except TypeError:
+        raise
 
     return True
 
