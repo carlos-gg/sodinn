@@ -12,7 +12,7 @@ from vip_hci.preproc import (cube_crop_frames, cube_derotate)
 from vip_hci.conf import time_ini, timing, Progressbar
 from vip_hci.var import (frame_center, dist,
                          cube_filter_highpass, get_annulus_segments)
-from ..utils import normalize_01_pw
+from sodinn.utils import normalize_01_pw
 from multiprocessing import cpu_count
 from vip_hci.conf.utils_conf import (pool_imap, iterable, make_chunks)
 from vip_hci.preproc import check_pa_vector

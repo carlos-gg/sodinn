@@ -3,9 +3,8 @@ Tests for DataLabeler using different sample type
 """
 
 import copy
-from ..data_labeling.labeling import DataLabeler
+from sodinn.data_labeling.labeling import DataLabeler
 from vip_hci.preproc import frame_crop
-from numpy import corrcoef
 
 
 def test_dataLabeler_mlar(example_dataset_adi):
