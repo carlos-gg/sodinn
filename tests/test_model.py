@@ -22,7 +22,7 @@ def test_models_mlar(dataLabeler_mlar):
         raise
 
     try:
-        model.train()
+        model.train(epochs=1, retrain=False)
     except TypeError:
         raise
 
@@ -46,7 +46,7 @@ def test_models_tmlar(dataLabeler_tmlar):
         raise
 
     try:
-        model.train()
+        model.train(epochs=1, retrain=False)
     except TypeError:
         raise
 
@@ -70,7 +70,7 @@ def test_models_tmlar4d(dataLabeler_tmlar4d):
         raise
 
     try:
-        model.train()
+        model.train(epochs=1, retrain=False)
     except TypeError:
         raise
 
@@ -94,7 +94,7 @@ def test_models_pw3d(dataLabeler_pw3d):
         raise
 
     try:
-        model.train()
+        model.train(epochs=1, retrain=False)
     except TypeError:
         raise
 
@@ -118,7 +118,7 @@ def test_models_pw2d(dataLabeler_pw2d):
         raise
 
     try:
-        model.train()
+        model.train(epochs=1, retrain=False)
     except TypeError:
         raise
 

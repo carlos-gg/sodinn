@@ -274,6 +274,8 @@ class Model:
         self.gpu_id = gpu_id
         if retrain:
             retrain = self.model
+        else:
+            retrain = None
 
         x = np.concatenate((self.x_plus, self.x_minus), axis=0)
         y = np.concatenate((self.y_plus, self.y_minus), axis=0)
