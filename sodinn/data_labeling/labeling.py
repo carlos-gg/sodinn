@@ -237,7 +237,7 @@ class DataLabeler:
         if radius_int is None:
             self.radius_int = int(round(2 * fwhm))
         else:
-            self.radius_int = radius_int
+            self.radius_int = int(radius_int)
 
         if self.sample_type in ('mlar', 'tmlar', 'tmlar4d'):
             self.sampling_sep = int(round(fwhm))
@@ -280,7 +280,6 @@ class DataLabeler:
         cy, cx = frame_center(cube[0])
         if self.sample_type in ('pw2d', 'pw3d'):
             max_rad = cy - self.patch_size_px - 4 - self.radius_int
-            print("max_rad : {}, radius_int : {}".format(max_rad, self.radius_int))
             dist = [int(d) for d in range(self.radius_int, int(max_rad))]
         elif self.sample_type in ('mlar', 'tmlar', 'tmlar4d'):
             max_rad = cy - (self.patch_size_px * 2 + self.sampling_sep) \
