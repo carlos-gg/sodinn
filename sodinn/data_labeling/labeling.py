@@ -280,6 +280,7 @@ class DataLabeler:
         cy, cx = frame_center(cube[0])
         if self.sample_type in ('pw2d', 'pw3d'):
             max_rad = cy - self.patch_size_px - 4 - self.radius_int
+            print("max_rad : {}".format(max_rad))
             dist = [int(d) for d in range(self.radius_int, int(max_rad))]
         elif self.sample_type in ('mlar', 'tmlar', 'tmlar4d'):
             max_rad = cy - (self.patch_size_px * 2 + self.sampling_sep) \
