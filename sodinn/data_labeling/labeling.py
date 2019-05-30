@@ -278,6 +278,7 @@ class DataLabeler:
         """ Distances at which we grab the samples, depending on the mode.
         """
         cy, cx = frame_center(cube[0])
+        print("cy : {}, cx : {}".format(cy, cx))
         if self.sample_type in ('pw2d', 'pw3d'):
             max_rad = cy - self.patch_size_px - 4 - self.radius_int
             print("max_rad : {}".format(max_rad))
