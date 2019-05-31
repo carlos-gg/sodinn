@@ -7,7 +7,7 @@ import copy
 from pytest import fixture
 from astropy.utils.data import download_file
 import vip_hci as vip
-from sodinn import DataLabeler
+from sodinn import DataLabeler, Model
 
 
 @fixture(scope="session")
@@ -51,6 +51,21 @@ def example_dataset_adi():
     dataset.psf = dataset.psfn
 
     return dataset
+
+
+@fixture(scope="session")
+def example_dataset_adi_fc(example_dataset_adi):
+    data = copy.copy(example_dataset_adi)
+
+    cube_fc = vip.metrics.cube_inject_companions(data.cube, data.psf,
+                                                 data.angles, flevel=1000,
+                                                 plsc=data.px_scale,
+                                                 rad_dists=data.fwhm*4)
+
+    dataset_fc = vip.Dataset(cube_fc, angles=data.angles, psf=data.psf,
+                             px_scale=data.px_scale)
+
+    return dataset_fc
 
 
 @fixture(scope="session")
@@ -131,6 +146,97 @@ def dataLabeler_pw2d(example_dataset_adi):
     labeler_pw2d = dataLabeler_type_test(dataset, "pw2d")
 
     return labeler_pw2d
+
+
+@fixture(scope="session")
+def models_mlar(dataLabeler_mlar):
+
+    labeler_mlar = dataLabeler_mlar
+
+    model = Model(labeler_mlar, layer_type=('conv3d', 'conv3d'),
+                  conv_nfilters=(40, 80), kernel_sizes=((3, 3, 3), (2, 2, 2)),
+                  conv_strides=((1, 1, 1), (1, 1, 1)), conv_padding='same',
+                  dilation_rate=((1, 1, 1), (1, 1, 1)), pool_layers=2,
+                  pool_func='ave', pool_sizes=((2, 2, 2), (2, 2, 2)),
+                  pool_strides=((2, 2, 2), (2, 2, 2)), rec_hidden_states=128,
+                  dense_units=128, activation='relu')
+
+    model.train(epochs=1, retrain=False)
+
+    return model
+
+
+@fixture(scope="session")
+def models_tmlar(dataLabeler_tmlar):
+
+    labeler_tmlar = dataLabeler_tmlar
+
+    model = Model(labeler_tmlar, layer_type=('conv3d', 'conv3d'),
+                  conv_nfilters=(40, 80), kernel_sizes=((3, 3, 3), (2, 2, 2)),
+                  conv_strides=((1, 1, 1), (1, 1, 1)), conv_padding='same',
+                  dilation_rate=((1, 1, 1), (1, 1, 1)), pool_layers=2,
+                  pool_func='ave', pool_sizes=((2, 2, 2), (2, 2, 2)),
+                  pool_strides=((2, 2, 2), (2, 2, 2)), rec_hidden_states=128,
+                  dense_units=128, activation='relu')
+
+    model.train(epochs=1, retrain=False)
+
+    return model
+
+
+@fixture(scope="session")
+def models_tmlar4d(dataLabeler_tmlar4d):
+
+    labeler_tmlar4d = dataLabeler_tmlar4d
+
+    model = Model(labeler_tmlar4d, layer_type=('conv3d', 'conv3d'),
+                  conv_nfilters=(40, 80), kernel_sizes=((3, 3, 3), (2, 2, 2)),
+                  conv_strides=((1, 1, 1), (1, 1, 1)), conv_padding='same',
+                  dilation_rate=((1, 1, 1), (1, 1, 1)), pool_layers=2,
+                  pool_func='ave', pool_sizes=((2, 2, 2), (2, 2, 2)),
+                  pool_strides=((2, 2, 2), (2, 2, 2)), rec_hidden_states=128,
+                  dense_units=128, activation='relu')
+
+    model.train(epochs=1, retrain=False)
+
+    return model
+
+
+@fixture(scope="session")
+def models_pw3d(dataLabeler_pw3d):
+
+    labeler_pw3d = dataLabeler_pw3d
+
+    model = Model(labeler_pw3d, layer_type=('conv3d', 'conv3d'),
+                  conv_nfilters=(40, 80), kernel_sizes=((3, 3, 3), (2, 2, 2)),
+                  conv_strides=((1, 1, 1), (1, 1, 1)), conv_padding='same',
+                  dilation_rate=((1, 1, 1), (1, 1, 1)), pool_layers=2,
+                  pool_func='ave', pool_sizes=((2, 2, 2), (2, 2, 2)),
+                  pool_strides=((2, 2, 2), (2, 2, 2)), rec_hidden_states=128,
+                  dense_units=128, activation='relu')
+
+    model.train(epochs=1, retrain=False)
+
+    return model
+
+
+@fixture(scope="session")
+def models_pw2d(dataLabeler_pw2d):
+
+    labeler_pw2d = dataLabeler_pw2d
+
+    model = Model(labeler_pw2d, layer_type=('conv3d', 'conv3d'),
+                  conv_nfilters=(40, 80), kernel_sizes=((3, 3, 3), (2, 2, 2)),
+                  conv_strides=((1, 1, 1), (1, 1, 1)), conv_padding='same',
+                  dilation_rate=((1, 1, 1), (1, 1, 1)), pool_layers=2,
+                  pool_func='ave', pool_sizes=((2, 2, 2), (2, 2, 2)),
+                  pool_strides=((2, 2, 2), (2, 2, 2)), rec_hidden_states=128,
+                  dense_units=128, activation='relu')
+
+    model.train(epochs=1, retrain=False)
+
+    return model
+
 
 
 def dataLabeler_type_test(dataset, sample_type):
