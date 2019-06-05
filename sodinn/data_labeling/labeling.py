@@ -290,6 +290,7 @@ class DataLabeler:
             nsamp_init = 2
             self.nsamp_sep = [nsamp_init + i for i in range(n_annuli)]
 
+        dist = dist[:-1]
         print('{} distances: '.format(len(dist)))
         print(dist)
 
