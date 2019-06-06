@@ -30,6 +30,19 @@ class Model:
                  rec_hidden_states=128, dense_units=128, activation='relu',
                  conv2d_pseudo3d=False, identifier=1, dir_path=None):
         """
+        Model generation for a given DataLabeler
+
+        Parameters
+        ----------
+        labeled_data : DataLabeler
+            DataLabeler from SODINN. Makes sure to run() it before
+        layer_type : tuple of str {'conv3d', 'clstm', 'bclstm', 'lrcn',
+        'blrcn', 'grcn', 'bgrcn'}, optional
+            [labeled_data.sample_dim > 3 & conv2d_pseudo3d=False] The type of
+            layers in the neural net, the len of the tuple is number of layers
+        conv_nfilters : tuple of int, optional
+            Filters used in ``keras.layers`` module
+        kernel_sizes : tuple of tuples of int, optional
         """
         if not hasattr(labeled_data, 'x_minus'):
             raise ValueError('labeled_data must be a sodinn.DataLabeler object')
