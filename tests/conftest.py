@@ -153,17 +153,9 @@ def models_mlar(dataLabeler_mlar):
 
     labeler_mlar = dataLabeler_mlar
 
-    model = Model(labeler_mlar, layer_type=('conv3d', 'conv3d'),
-                  conv_nfilters=(40, 80), kernel_sizes=((3, 3, 3), (2, 2, 2)),
-                  conv_strides=((1, 1, 1), (1, 1, 1)), conv_padding='same',
-                  dilation_rate=((1, 1, 1), (1, 1, 1)), pool_layers=2,
-                  pool_func='ave', pool_sizes=((2, 2, 2), (2, 2, 2)),
-                  pool_strides=((2, 2, 2), (2, 2, 2)), rec_hidden_states=128,
-                  dense_units=128, activation='relu')
+    model = model2d(labeler_mlar)
 
-    model.train(epochs=1, retrain=False)
-
-    return model
+    return train_model(model)
 
 
 @fixture(scope="session")
@@ -171,17 +163,9 @@ def models_tmlar(dataLabeler_tmlar):
 
     labeler_tmlar = dataLabeler_tmlar
 
-    model = Model(labeler_tmlar, layer_type=('conv3d', 'conv3d'),
-                  conv_nfilters=(40, 80), kernel_sizes=((3, 3, 3), (2, 2, 2)),
-                  conv_strides=((1, 1, 1), (1, 1, 1)), conv_padding='same',
-                  dilation_rate=((1, 1, 1), (1, 1, 1)), pool_layers=2,
-                  pool_func='ave', pool_sizes=((2, 2, 2), (2, 2, 2)),
-                  pool_strides=((2, 2, 2), (2, 2, 2)), rec_hidden_states=128,
-                  dense_units=128, activation='relu')
+    model = model2d(labeler_tmlar)
 
-    model.train(epochs=1, retrain=False)
-
-    return model
+    return train_model(model)
 
 
 @fixture(scope="session")
@@ -190,16 +174,15 @@ def models_tmlar4d(dataLabeler_tmlar4d):
     labeler_tmlar4d = dataLabeler_tmlar4d
 
     model = Model(labeler_tmlar4d, layer_type=('conv3d', 'conv3d'),
-                  conv_nfilters=(40, 80), kernel_sizes=((3, 3, 3), (2, 2, 2)),
+                  conv_nfilters=(16, 64),  kernel_sizes=((4, 3, 3), (4, 3, 3)),
                   conv_strides=((1, 1, 1), (1, 1, 1)), conv_padding='same',
-                  dilation_rate=((1, 1, 1), (1, 1, 1)), pool_layers=2,
-                  pool_func='ave', pool_sizes=((2, 2, 2), (2, 2, 2)),
-                  pool_strides=((2, 2, 2), (2, 2, 2)), rec_hidden_states=128,
-                  dense_units=128, activation='relu')
+                  dilation_rate=((1, 1, 1), (1, 1, 1)), pool_func='max',
+                  pool_sizes=((2, 2, 2), (2, 2, 2)),
+                  pool_strides=((2, 2, 2), (2, 2, 2)), rec_hidden_states=0,
+                  dense_units=128, activation='relu', conv2d_pseudo3d=False,
+                  identifier=1, dir_path=None)
 
-    model.train(epochs=1, retrain=False)
-
-    return model
+    return train_model(model)
 
 
 @fixture(scope="session")
@@ -207,17 +190,9 @@ def models_pw3d(dataLabeler_pw3d):
 
     labeler_pw3d = dataLabeler_pw3d
 
-    model = Model(labeler_pw3d, layer_type=('conv3d', 'conv3d'),
-                  conv_nfilters=(40, 80), kernel_sizes=((3, 3, 3), (2, 2, 2)),
-                  conv_strides=((1, 1, 1), (1, 1, 1)), conv_padding='same',
-                  dilation_rate=((1, 1, 1), (1, 1, 1)), pool_layers=2,
-                  pool_func='ave', pool_sizes=((2, 2, 2), (2, 2, 2)),
-                  pool_strides=((2, 2, 2), (2, 2, 2)), rec_hidden_states=128,
-                  dense_units=128, activation='relu')
+    model = model2d(labeler_pw3d)
 
-    model.train(epochs=1, retrain=False)
-
-    return model
+    return train_model(model)
 
 
 @fixture(scope="session")
@@ -225,17 +200,9 @@ def models_pw2d(dataLabeler_pw2d):
 
     labeler_pw2d = dataLabeler_pw2d
 
-    model = Model(labeler_pw2d, layer_type=('conv2d', 'conv2d'),
-                  conv_nfilters=(40, 80), kernel_sizes=((3, 3), (2, 2)),
-                  conv_strides=((1, 1, 1), (1, 1, 1)), conv_padding='same',
-                  dilation_rate=((1, 1, 1), (1, 1, 1)), pool_layers=2,
-                  pool_func='ave', pool_sizes=((2, 2, 2), (2, 2, 2)),
-                  pool_strides=((2, 2, 2), (2, 2, 2)), rec_hidden_states=128,
-                  dense_units=128, activation='relu')
+    model = model2d(labeler_pw2d)
 
-    model.train(epochs=1, retrain=False)
-
-    return model
+    return train_model(model)
 
 
 def dataLabeler_type_test(dataset, sample_type):
@@ -266,3 +233,23 @@ def dataLabeler_type_test(dataset, sample_type):
         raise
 
     return labeler
+
+
+def model2d(labeler):
+    return Model(labeler, layer_type=('conv2d', 'conv2d'),
+                 conv_nfilters=(40, 40), kernel_sizes=((3, 3), (3, 3)),
+                 conv_strides=((1, 1), (1, 1)), conv_padding='same',
+                 dilation_rate=((1, 1), (1, 1)), pool_func='max',
+                 pool_sizes=((2, 2, 2), (2, 2, 2)),
+                 pool_strides=((2, 2, 2), (2, 2, 2)), rec_hidden_states=0,
+                 dense_units=128, activation='relu', conv2d_pseudo3d=False,
+                 identifier=1, dir_path=None)
+
+
+def train_model(model):
+    model.train(test_split=0.1, validation_split=0.1, random_state=0,
+                learning_rate=0.003, batch_size=512, epochs=20, patience=2,
+                min_delta=0.01,  retrain=None, verbose=1, summary=True,
+                gpu_id='0', plot='tb', tblog_path='./logs/', tblog_name=None)
+
+    return model
