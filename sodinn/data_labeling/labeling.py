@@ -665,7 +665,7 @@ class DataLabeler:
 
     def augment(self, mode='basic', n_samp_annulus=10, fraction_averages=0.6,
                 fraction_rotshifts=0.2, shift_amplitude=0.5,
-                fraction_mupcu=0.2):
+                fraction_mupcu=0.2, resave=True):
         """
         """
         if mode == 'basic':
@@ -683,7 +683,7 @@ class DataLabeler:
         else:
             print("Data augmentation mode not recognized")
 
-        if self.save_filename_labdata is not None:
+        if resave & self.save_filename_labdata is not None:
             self.save(self.save_filename_labdata)
 
     def inspect_samples(self, index=None, max_slices=None, n_samples=5,
