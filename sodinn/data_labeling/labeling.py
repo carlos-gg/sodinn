@@ -57,7 +57,10 @@ class DataLabeler:
         pa : ndarray or tuple of ndarrays, 1d
             Array of corresponding parallactic angle for each frame
         psf : ndarray or tuple of ndarrays, 1d
-            Psf of the cube(s)
+            Psf of the cube(s). It must be normalized, centered with respect to
+            the frame, and croped to at must 10 times the fwhm.
+            see ``vip_hci.preproc.frame_crop`` and
+            ``vip_hci.metrics.normalize_psf``
         radius_int : int or None, optional
             The initial separation [in pixels] at which the samples will be
             taken from. The default initial distance is ``2*fwhm``.
@@ -237,7 +240,7 @@ class DataLabeler:
         if radius_int is None:
             self.radius_int = int(round(2 * fwhm))
         else:
-            self.radius_int = radius_int
+            self.radius_int = int(radius_int)
 
         if self.sample_type in ('mlar', 'tmlar', 'tmlar4d'):
             self.sampling_sep = int(round(fwhm))
