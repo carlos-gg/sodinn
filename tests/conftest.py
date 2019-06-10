@@ -248,7 +248,7 @@ def model2d(labeler):
 
 def train_model(model):
     model.train(test_split=0.1, validation_split=0.1, random_state=0,
-                learning_rate=0.003, batch_size=512, epochs=20, patience=2,
+                learning_rate=0.003, batch_size=512, epochs=1, patience=2,
                 min_delta=0.01,  retrain=None, verbose=1, summary=True,
                 gpu_id='0', plot='tb', tblog_path='./logs/', tblog_name=None)
 
