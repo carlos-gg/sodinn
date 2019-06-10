@@ -450,7 +450,7 @@ class DataLabeler:
         starttime = time_ini()
         random_state = np.random.RandomState(self.random_seed)
 
-        news = np.round(fraction_averages + fraction_rotshifts + fraction_mupcu)
+        news = fraction_averages + fraction_rotshifts + fraction_mupcu
         if not news == 1:
             ms = 'Fractions of averaged samples, rotated/shifted samples and '
             ms += 'samples from the `messed-up cube` must sum up to one'
@@ -665,8 +665,31 @@ class DataLabeler:
 
     def augment(self, mode='basic', n_samp_annulus=10, fraction_averages=0.6,
                 fraction_rotshifts=0.2, shift_amplitude=0.5,
-                fraction_mupcu=0.2, resave=True):
+                fraction_mupcu=0.2, overwrite=True):
         """
+        Augmentation of the number of samples for a labeler
+
+        Parameters
+        ----------
+        mode : {'basic'}, optional
+            Type of method use to augment the data. Only 'basic' type is
+            available for now
+        n_samp_annulus : int, optional
+            Number of samples made per annulus. In result, there will be
+            n_samp_annulus*n_distances new C+ samples, and the same number of
+            new C- samples
+        fraction_averages : float between 0 and 1, optional
+            Fraction of the new C- samples made by the averages method
+        fraction_rotshifts : float between 0 and 1, optional
+            Fraction of the new C- samples made by rotation and shifts
+        fraction_mupcu : float between 0 and 1, optional
+            Fraction of the new C- samples made by messing up the cube
+        shift_amplitude : float, optional
+            Shift amplitude of the cube to make rotshifts C- samples. Between 0
+            and 2 px is recommended
+        overwrite : bool, optional
+            If set True, the previous existing save of the labeler will be
+            overwritten
         """
         if mode == 'basic':
             if self.x_minus is None:
@@ -683,7 +706,7 @@ class DataLabeler:
         else:
             print("Data augmentation mode not recognized")
 
-        if resave & (self.save_filename_labdata is not None):
+        if overwrite & (self.save_filename_labdata is not None):
             self.save(self.save_filename_labdata)
 
     def inspect_samples(self, index=None, max_slices=None, n_samples=5,
