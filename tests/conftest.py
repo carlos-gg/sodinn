@@ -236,7 +236,7 @@ def dataLabeler_type_test(dataset, sample_type):
 
 
 def model2d(labeler):
-    return Model(labeler, layer_type=('conv2d', 'conv2d'),
+    return Model(labeler, layer_type=('clstm', 'clstm'),
                  conv_nfilters=(40, 40), kernel_sizes=((3, 3), (3, 3)),
                  conv_strides=((1, 1), (1, 1)), conv_padding='same',
                  dilation_rate=((1, 1), (1, 1)), pool_func='max',
