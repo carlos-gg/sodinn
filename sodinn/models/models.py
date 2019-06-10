@@ -41,8 +41,42 @@ class Model:
             [labeled_data.sample_dim > 3 & conv2d_pseudo3d=False] The type of
             layers in the neural net, the len of the tuple is number of layers
         conv_nfilters : tuple of int, optional
-            Filters used in ``keras.layers`` module
+            Filters used in ``keras.layers`` module. The dimensionality of the
+            output space (i.e. the number of output filters in the convolution).
         kernel_sizes : tuple of tuples of int, optional
+            specifying the depth, height and width of the convolution window
+        conv_strides : tuple of tuples of int, optional
+            specifying the strides of the convolution along each spatial
+            dimension. Specifying any stride value != 1 is incompatible with
+            specifying any `dilation_rate` value != 1.
+        conv_padding : {'valid' or 'same'}, optional
+        dilation_rate : tuple of tuples of int, optinal
+            specifying the dilation rate to use for dilated convolution.
+            Currently, specifying any `dilation_rate` value != 1 is incompatible
+            with specifying any stride value != 1.
+        pool_layers : int, optional
+            The number of pool layers int the net. It can't be greater than the
+            number of convolution layers
+        pool_func : {'ave' or 'max'}, optional
+            Type if the pool layers, AveragePooling or MaxPooling
+        pool_sizes : tuple of tuples of int, optional
+            factors by which to downscale in the pool layers
+        pool_strides : tuple of tuples of int, optional
+            Strides value for the pool layers
+        rec_hidden_states : int, optional
+            [layer_type = lrcn', 'blrcn', 'grcn' or 'bgrcn'] dimensionality of
+            the output space for CuDNN layers
+        dense_units : int, optional
+            dimensionality of the output space for Dense layer
+        activation : str, optional
+            Type of the Activation layer. See ''keras.layers.Activation''
+        conv2d_pseudo3d : bool, optional
+            [sample_dim==3] if True, force to train a 2D net with a 3D input by
+            changing the shape of the input cube
+        identifier : int, optional
+            Id key of the Model object
+        dir_path : path or None, optional
+            Path were the model will be saved
         """
         if not hasattr(labeled_data, 'x_minus'):
             raise ValueError('labeled_data must be a sodinn.DataLabeler object')
