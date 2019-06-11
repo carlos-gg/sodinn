@@ -451,7 +451,7 @@ class DataLabeler:
         random_state = np.random.RandomState(self.random_seed)
 
         news = fraction_averages + fraction_rotshifts + fraction_mupcu
-        if not news == 1:
+        if not news == 1.0:
             ms = 'Fractions of averaged samples, rotated/shifted samples and '
             ms += 'samples from the `messed-up cube` must sum up to one'
             raise ValueError(ms)

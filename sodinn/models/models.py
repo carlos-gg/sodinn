@@ -299,6 +299,7 @@ class Model:
               min_delta=0.001, retrain=False, verbose=1, summary=True,
               gpu_id='0', plot='tb', tblog_path='./logs/', tblog_name=None):
         """
+        Train the net
 
         Parameters
         ----------
