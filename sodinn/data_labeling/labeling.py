@@ -1152,6 +1152,7 @@ class DataLabeler:
         obj.x_plus = fh5r.x_plus.read()
         obj.y_minus = fh5r.y_minus.read()
         obj.y_plus = fh5r.y_plus.read()
+        obj.k_list = fh5r.k_list.read()
 
         fh5.close()
         return obj
