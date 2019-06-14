@@ -1050,12 +1050,13 @@ class DataLabeler:
 
                 elif isinstance(attr, list):
                     if isinstance(attr[0], np.ndarray):
-                        print("List[np.array] : {}".format(key))
                         if attr[0].dtype in ('float32', 'float64'):
-                            print("type float : {}".format(key))
                             attr = np.array(attr, dtype='float32')
                             _ = fh5.create_array('/', key, obj=attr,
                                                  atom=f32atom)
+                        elif attr[0].dtype == 'int64':
+                            _ = fh5.create_array('/', key, obj=attr,
+                                                 atom=tables.Int64Atom())
                     else:
                         _ = fh5.create_array('/', key, obj=attr)
 
