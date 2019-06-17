@@ -487,51 +487,99 @@ class DataLabeler:
             print("Cube {}:".format(i + 1))
             print('-------')
 
+            nc_samples = n_samp_annulus
+            ncplus_injection_annulus = int(0.1 * n_samp_annulus)
+
             # ------------------------------------------------------------------
             # More C+ samples by injecting more companions
             if self.sample_type in ('pw2d', 'pw3d'):
                 print("Making new C+ samples")
                 res = pool_map(self.n_proc, self._make_andro_samples_ann_signal,
-                               i, iterable(self.distances[i]), iterable(self.flo[i]),
-                               iterable(self.fhi[i]), False, n_samp_annulus)
+                               i, iterable(self.distances[i]),
+                               iterable(self.flo[i]), iterable(self.fhi[i]),
+                               False, ncplus_injection_annulus)
 
                 if self.sample_dim == 3 and self.slice3d:
                     self._do_slice_3d(res)
                 res = np.vstack(res)
-                ncplus_samples = res.shape[0]
                 data_cpl.append(res)
-                print('{} new C+ PW samples'.format(ncplus_samples))
+                print('{} new C+ PW samples'.format(ncplus_injection_annulus))
 
             elif self.sample_type in ('mlar', 'tmlar', 'tmlar4d'):
                 print("Making new C+ MLAR samples:")
                 width = 1 * self.fwhm
                 distances = self.distances[i]
 
-                ncplus_samples = 0
                 for d in range(len(distances)):
                     inrad = distances[d] - int(np.ceil(width / 2.))
                     outrad = inrad + width
                     force_klen = True  # we enforce the same number of k slices
                     f = make_mlar_samples_ann_signal
                     res = f(self.cube[i], self.pa[i], self.psf[i],
-                            n_samp_annulus, self.cevr_thresh, self.n_ks,
+                            ncplus_injection_annulus, self.cevr_thresh, self.n_ks,
                             force_klen, inrad, outrad, self.patch_size_px,
                             self.flo[i][d], self.fhi[i][d], self.plsc,
                             self.normalization, self.n_proc, 1,
                             self.interpolation, self.lr_mode, self.sample_type,
                             self.kss_window, self.tss_window, self.random_seed)
                     data_cpl.append(res)
-                    ncplus_samples += res.shape[0]
-                    print('+', end='')
                 print('')
-                print('{} new C+ MLAR samples'.format(ncplus_samples))
+                print('{} new C+ MLAR samples'.format(ncplus_injection_annulus))
 
             del res
             timing(starttime)
 
+            ncplus_augment_samples = n_samp_annulus - ncplus_injection_annulus
+
+            # More C+ samples by mean combinations of existing patches
+            ave_nsamples = int(ncplus_augment_samples * fraction_averages)
+            print("{} C+ random averages".format(ave_nsamples))
+
+            # taking 2 lists of random negative samples
+            ind_ave1 = random_state.randint(0, half_initsamples, ave_nsamples)
+            ind_ave2 = random_state.randint(0, half_initsamples, ave_nsamples)
+            new_pos_ave = np.mean((np.array(fileh.root.c_plus)[ind_ave1],
+                                   np.array(fileh.root.c_plus)[ind_ave2]),
+                                  axis=0)
+            data_cpl.append(new_pos_ave)
+            del new_neg_ave
+            timing(starttime)
+
+            # ------------------------------------------------------------------
+            # Random rotations (and shifts)
+            border_mode = 'reflect'
+            roshi_nsamples = int(ncplus_augment_samples * fraction_rotshifts)
+            msg = "{} C+ rotations/shifts (- every 1k):"
+            print(msg.format(roshi_nsamples))
+            if self.sample_type == 'pw2d':
+                new_rotshi_samples = np.empty((roshi_nsamples, dshape[1],
+                                               dshape[2]))
+            elif self.sample_type in ('pw3d', 'mlar', 'tmlar'):
+                new_rotshi_samples = np.empty((roshi_nsamples, dshape[1],
+                                               dshape[2], dshape[3]))
+            elif self.sample_type == 'tmlar4d':
+                new_rotshi_samples = np.empty((roshi_nsamples, dshape[1],
+                                               dshape[2], dshape[3], dshape[4]))
+
+            for j in range(roshi_nsamples):
+                pos_ang = random_state.uniform(0, 359, 1)
+                pos_ind = random_state.randint(0, half_initsamples, 1)[0]
+                trotshi = _rotations_and_shifts(fileh.root.c_plus[pos_ind],
+                                                pos_ang, samp_dim, border_mode,
+                                                shift_amplitude, self.imlib,
+                                                self.interpolation,
+                                                self.random_seed)
+                new_rotshi_samples[j] = trotshi
+                if j % 1000 == 0:
+                    print('+', end='')
+            print('')
+            data_cpl.append(new_rotshi_samples)
+            del new_rotshi_samples
+            timing(starttime)
+
             # ------------------------------------------------------------------
             # More C- samples by mean combinations of existing patches
-            ave_nsamples = int(ncplus_samples * fraction_averages)
+            ave_nsamples = int(nc_samples * fraction_averages)
             print("{} C- random averages".format(ave_nsamples))
 
             # taking 2 lists of random negative samples
@@ -547,7 +595,7 @@ class DataLabeler:
             # ------------------------------------------------------------------
             # Random rotations (and shifts)
             border_mode = 'reflect'
-            roshi_nsamples = int(ncplus_samples * fraction_rotshifts)
+            roshi_nsamples = int(nc_samples * fraction_rotshifts)
             msg = "{} C- rotations/shifts (- every 1k):"
             print(msg.format(roshi_nsamples))
             if self.sample_type == 'pw2d':
@@ -576,7 +624,7 @@ class DataLabeler:
             del new_rotshi_samples
             timing(starttime)
 
-        n_total_aug = ncplus_samples * 2 * self.n_cubes
+        n_total_aug = nc_samples * 2 * self.n_cubes
         n_total_samples = self.n_init_samples + n_total_aug
         self.n_total_samples = n_total_samples
         self.x_minus = np.array(fileh.root.c_minus, dtype='float32')
@@ -589,7 +637,7 @@ class DataLabeler:
         print('Total number of samples: {}'.format(self.n_total_samples))
 
         self.augmented = True
-        self.n_aug_inj = ncplus_samples * self.n_cubes
+        self.n_aug_inj = nc_samples * self.n_cubes
         self.n_aug_aver = ave_nsamples * self.n_cubes
         self.n_aug_rotshi = roshi_nsamples * self.n_cubes
 
