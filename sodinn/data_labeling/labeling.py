@@ -271,7 +271,6 @@ class DataLabeler:
         self.n_aug_inj = -1
         self.n_aug_aver = -1
         self.n_aug_rotshi = -1
-        self.n_aug_mupcu = -1
         self.k_list = []
         self.fluxes_list = []
         self.snrs_list = []
@@ -431,8 +430,7 @@ class DataLabeler:
                 arr[i][j] = arr[i][j][ind]
 
     def _basic_augmentation(self, n_samp_annulus, fraction_averages,
-                            fraction_rotshifts, shift_amplitude,
-                            fraction_mupcu):
+                            fraction_rotshifts, shift_amplitude):
         """ Data augmentation for creating more labeled data using simple
         strategies (mean combinations, rotations, shifting of existing samples
 
@@ -451,7 +449,7 @@ class DataLabeler:
         starttime = time_ini()
         random_state = np.random.RandomState(self.random_seed)
 
-        news = fraction_averages + fraction_rotshifts + fraction_mupcu
+        news = fraction_averages + fraction_rotshifts
         if not news == 1.0:
             ms = 'Fractions of averaged samples, rotated/shifted samples and '
             ms += 'samples from the `messed-up cube` must sum up to one'
@@ -586,63 +584,6 @@ class DataLabeler:
             del new_rotshi_samples
             timing(starttime)
 
-            # ------------------------------------------------------------------
-            # Samples from the messed-up cube
-            resampling_factor = 1.1
-            mupcu_nsamples = int(ncplus_samples - ave_nsamples - roshi_nsamples)
-            print("{} C- samples from messed-up cube:".format(mupcu_nsamples))
-
-            mupcube = _create_mupcu(self.cube[i], shift_amplitude,
-                                    resampling_factor, self.imlib,
-                                    self.interpolation, border_mode,
-                                    self.random_seed)
-            mupcu_per_annulus = int(mupcu_nsamples / len(self.distances))
-            if mupcu_per_annulus < 1:
-                mupcu_per_annulus = 1
-
-            width = 1 * self.fwhm
-            distances = self.distances[i]
-            # mupcube = np.flip(mupcube, axis=0)
-            # pa_mupcube = np.flip(self.pa[i], axis=0)
-            pa_mupcube = self.pa[i]
-
-            if self.sample_type in ('mlar', 'tmlar', 'tmlar4d'):
-                for d in range(len(distances)):
-                    inrad = distances[d] - int(np.ceil(width / 2.))
-                    outrad = inrad + width
-                    force_klen = True  # we enforce the same number of k slices
-                    f0 = make_mlar_samples_ann_noise
-                    res0 = f0(mupcube, pa_mupcube, self.cevr_thresh, self.n_ks,
-                              force_klen, inrad, outrad, self.patch_size_px,
-                              self.fwhm, self.normalization, 1,
-                              self.interpolation, self.lr_mode,
-                              self.sample_type, self.kss_window,
-                              self.tss_window, self.random_seed,
-                              nsamp_sep=mupcu_per_annulus)
-                    res0 = res0[0]
-                    print('-', end='')
-                    if d == 0:
-                        new_mupcu_samps = res0
-                    else:
-                        new_mupcu_samps = np.concatenate((new_mupcu_samps, res0),
-                                                         axis=0)
-                print('')
-
-            elif self.sample_type in ('pw2d', 'pw3d'):
-                negs = pool_map(self.n_proc, self._make_andro_samples_ann_noise,
-                                i, iterable(self.distances[i]), mupcu_per_annulus,
-                                mupcube, pa_mupcube)
-
-                # list of lists of 3d ndarrays
-                if self.sample_dim == 3 and self.slice3d:
-                    self._do_slice_3d(negs)
-                new_mupcu_samps = np.vstack(negs)
-
-            data_cmin.append(new_mupcu_samps[:mupcu_nsamples])
-            labe_cmin.append(np.zeros(ncplus_samples))
-            labe_cpl.append(np.ones(ncplus_samples))
-            timing(starttime)
-
         n_total_aug = ncplus_samples * 2 * self.n_cubes
         n_total_samples = self.n_init_samples + n_total_aug
         self.n_total_samples = n_total_samples
@@ -659,14 +600,12 @@ class DataLabeler:
         self.n_aug_inj = ncplus_samples * self.n_cubes
         self.n_aug_aver = ave_nsamples * self.n_cubes
         self.n_aug_rotshi = roshi_nsamples * self.n_cubes
-        self.n_aug_mupcu = mupcu_nsamples * self.n_cubes
 
         self.runtime = time_fin(starttime)
         timing(starttime)
 
     def augment(self, mode='basic', n_samp_annulus=10, fraction_averages=0.6,
-                fraction_rotshifts=0.2, shift_amplitude=0.5,
-                fraction_mupcu=0.2, overwrite=True):
+                fraction_rotshifts=0.2, shift_amplitude=0.5, overwrite=True):
         """
         Augmentation of the number of samples for a labeler
 
@@ -683,8 +622,6 @@ class DataLabeler:
             Fraction of the new C- samples made by the averages method
         fraction_rotshifts : float between 0 and 1, optional
             Fraction of the new C- samples made by rotation and shifts
-        fraction_mupcu : float between 0 and 1, optional
-            Fraction of the new C- samples made by messing up the cube
         shift_amplitude : float, optional
             Shift amplitude of the cube to make rotshifts C- samples. Between 0
             and 2 px is recommended
@@ -702,8 +639,7 @@ class DataLabeler:
                 if self.sample_type == 'pw3d' and n_samp_annulus > 10000:
                     raise ValueError("`N_samp_annulus` is too high")
             self._basic_augmentation(n_samp_annulus, fraction_averages,
-                                     fraction_rotshifts, shift_amplitude,
-                                     fraction_mupcu)
+                                     fraction_rotshifts, shift_amplitude)
         else:
             print("Data augmentation mode not recognized")
 
