@@ -126,7 +126,8 @@ class DataLabeler:
         tss_window : int, optional
             [sample_type='tmlar' or 'tmlar4d'] Force the size of the time
             dimension by removing samples strating with the first ones
-        lr_mode, optional
+        lr_mode : string, optional
+            Mode used in ''vip.pca.svd_wrapper'' function
         imlib : str, optional
             See the documentation of the ``vip_hci.preproc.frame_rotate``
             function.
@@ -489,6 +490,7 @@ class DataLabeler:
 
             nc_samples = n_samp_annulus
             ncplus_injection_annulus = int(0.1 * n_samp_annulus)
+            ncplus_augment_samples = nc_samples - ncplus_injection_annulus
 
             # ------------------------------------------------------------------
             # More C+ samples by injecting more companions
@@ -528,8 +530,6 @@ class DataLabeler:
 
             del res
             timing(starttime)
-
-            ncplus_augment_samples = n_samp_annulus - ncplus_injection_annulus
 
             # More C+ samples by mean combinations of existing patches
             ave_nsamples = int(ncplus_augment_samples * fraction_averages)
