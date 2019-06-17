@@ -488,9 +488,10 @@ class DataLabeler:
             print("Cube {}:".format(i + 1))
             print('-------')
 
-            nc_samples = n_samp_annulus
             ncplus_injection_annulus = int(0.1 * n_samp_annulus)
-            ncplus_augment_samples = nc_samples - ncplus_injection_annulus
+            nc_samples = n_samp_annulus * len(self.distances[i])
+            ncplus_augment_samples = nc_samples - (ncplus_injection_annulus *
+                                                   len(self.distances[i]))
 
             # ------------------------------------------------------------------
             # More C+ samples by injecting more companions
