@@ -495,8 +495,6 @@ class DataLabeler:
             ncplus_augment_samples = nc_samples - ncplus_injection_samples
 
             print("Total number of C+ samples : {}".format(nc_samples))
-            print("Number of c+ samples per annulus : {}".format(ncplus_injection_annulus))
-            print("Rest : {}".format(ncplus_augment_samples))
 
             # ------------------------------------------------------------------
             # More C+ samples by injecting more companions
