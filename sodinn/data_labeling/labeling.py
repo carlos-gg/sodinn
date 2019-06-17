@@ -542,10 +542,9 @@ class DataLabeler:
                                    np.array(fileh.root.c_plus)[ind_ave2]),
                                   axis=0)
             data_cpl.append(new_pos_ave)
-            del new_neg_ave
+            del new_pos_ave
             timing(starttime)
 
-            # ------------------------------------------------------------------
             # Random rotations (and shifts)
             border_mode = 'reflect'
             roshi_nsamples = int(ncplus_augment_samples * fraction_rotshifts)
