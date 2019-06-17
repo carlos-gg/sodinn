@@ -536,13 +536,14 @@ class DataLabeler:
             timing(starttime)
 
             # More C+ samples by mean combinations of existing patches
-            ave_nsamples = int(np.round(ncplus_augment_samples *
-                                        fraction_averages))
+            ave_nsamples = int(fraction_averages * (nc_samples
+                                                    - ncplus_augment_samples))
             print("{} C+ random averages".format(ave_nsamples))
 
             # taking 2 lists of random negative samples
-            ind_ave1 = random_state.randint(0, half_initsamples, ave_nsamples)
-            ind_ave2 = random_state.randint(0, half_initsamples, ave_nsamples)
+            prev_cplus_samples = fileh.root.c_plus.shape[0]
+            ind_ave1 = random_state.randint(0, prev_cplus_samples, ave_nsamples)
+            ind_ave2 = random_state.randint(0, prev_cplus_samples, ave_nsamples)
             new_pos_ave = np.mean((np.array(fileh.root.c_plus)[ind_ave1],
                                    np.array(fileh.root.c_plus)[ind_ave2]),
                                   axis=0)
@@ -552,8 +553,7 @@ class DataLabeler:
 
             # Random rotations (and shifts)
             border_mode = 'reflect'
-            roshi_nsamples = int(np.round(ncplus_augment_samples *
-                                      fraction_rotshifts))
+            roshi_nsamples = nc_samples - ave_nsamples - ncplus_augment_samples
             msg = "{} C+ rotations/shifts (- every 1k):"
             print(msg.format(roshi_nsamples))
             if self.sample_type == 'pw2d':
