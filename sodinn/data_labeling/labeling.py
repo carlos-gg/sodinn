@@ -437,14 +437,6 @@ class DataLabeler:
         Assumes X contains first the C+ samples followed by the C- ones and
         that they are balanced.
 
-        Parameters
-        ----------
-        fraction_averages :
-            Fraction of new negative samples wrt to the negative samples in X.
-
-        shift_amplitude : float or None
-            Between 0 and 2 px is recommended.
-
         """
         starttime = time_ini()
         random_state = np.random.RandomState(self.random_seed)
