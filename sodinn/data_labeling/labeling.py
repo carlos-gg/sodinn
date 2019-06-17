@@ -492,7 +492,6 @@ class DataLabeler:
             nc_samples = n_samp_annulus * len(self.distances[i])
             ncplus_injection_samples = (ncplus_injection_annulus
                                         * len(self.distances[i]))
-            ncplus_augment_samples = nc_samples - ncplus_injection_samples
 
             print("Total number of C+ samples : {}".format(nc_samples))
 
@@ -537,7 +536,7 @@ class DataLabeler:
 
             # More C+ samples by mean combinations of existing patches
             ave_nsamples = int(fraction_averages * (nc_samples
-                                                    - ncplus_augment_samples))
+                                                    - ncplus_injection_samples))
             print("{} C+ random averages".format(ave_nsamples))
 
             # taking 2 lists of random negative samples
@@ -553,7 +552,8 @@ class DataLabeler:
 
             # Random rotations (and shifts)
             border_mode = 'reflect'
-            roshi_nsamples = nc_samples - ave_nsamples - ncplus_augment_samples
+            roshi_nsamples = nc_samples - (ave_nsamples
+                                           + ncplus_injection_samples)
             msg = "{} C+ rotations/shifts (- every 1k):"
             print(msg.format(roshi_nsamples))
             if self.sample_type == 'pw2d':
