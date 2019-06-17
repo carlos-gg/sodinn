@@ -493,6 +493,10 @@ class DataLabeler:
             ncplus_augment_samples = nc_samples - (ncplus_injection_annulus *
                                                    len(self.distances[i]))
 
+            print("Total number of C+ samples : {}".format(nc_samples))
+            print("Number of c+ samples per annulus : {}".format(ncplus_injection_annulus))
+            print("Rest : {}".format(ncplus_augment_samples))
+
             # ------------------------------------------------------------------
             # More C+ samples by injecting more companions
             if self.sample_type in ('pw2d', 'pw3d'):
