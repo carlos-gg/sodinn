@@ -50,9 +50,11 @@ def make_mlar_samples_ann_signal(input_array, angle_list, psf, n_samples,
         print("Creating the ONEs samples")
 
     frsize = int(input_array.shape[1])
-    if frsize > outrad + outrad + patch_size + 2:
-        frsize = int(outrad + outrad + patch_size + 2)
-        cube = cube_crop_frames(input_array, frsize, force=True, verbose=False)
+    cube = input_array
+    # if frsize > outrad + outrad + patch_size + 2:
+    #     frsize = int(outrad + outrad + patch_size + 2)
+    #     cube = cube_crop_frames(input_array, frsize, force=True,
+    #                             verbose=False)
 
     width = outrad - inrad
     yy, xx = get_annulus_segments((frsize, frsize), inrad, width, 1)[0]
