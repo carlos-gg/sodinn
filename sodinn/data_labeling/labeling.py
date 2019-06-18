@@ -1031,6 +1031,7 @@ class DataLabeler:
                     _ = fh5.create_array('/', key, obj=attr, atom=f32atom)
 
                 elif isinstance(attr, list):
+                    print(attr)
                     if isinstance(attr[0], np.ndarray):
                         if attr[0].dtype in ('float32', 'float64'):
                             attr = np.array(attr, dtype='float32')
