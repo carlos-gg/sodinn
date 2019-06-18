@@ -126,7 +126,8 @@ class DataLabeler:
         tss_window : int, optional
             [sample_type='tmlar' or 'tmlar4d'] Force the size of the time
             dimension by removing samples strating with the first ones
-        lr_mode, optional
+        lr_mode : string, optional
+            Mode used in ''vip.pca.svd_wrapper'' function
         imlib : str, optional
             See the documentation of the ``vip_hci.preproc.frame_rotate``
             function.
@@ -487,51 +488,103 @@ class DataLabeler:
             print("Cube {}:".format(i + 1))
             print('-------')
 
+            ncplus_injection_annulus = int(0.1 * n_samp_annulus)
+            nc_samples = n_samp_annulus * len(self.distances[i])
+            ncplus_injection_samples = (ncplus_injection_annulus
+                                        * len(self.distances[i]))
+
+            print("Total number of C+ samples : {}".format(nc_samples))
+
             # ------------------------------------------------------------------
             # More C+ samples by injecting more companions
             if self.sample_type in ('pw2d', 'pw3d'):
                 print("Making new C+ samples")
                 res = pool_map(self.n_proc, self._make_andro_samples_ann_signal,
-                               i, iterable(self.distances[i]), iterable(self.flo[i]),
-                               iterable(self.fhi[i]), False, n_samp_annulus)
+                               i, iterable(self.distances[i]),
+                               iterable(self.flo[i]), iterable(self.fhi[i]),
+                               False, ncplus_injection_annulus)
 
                 if self.sample_dim == 3 and self.slice3d:
                     self._do_slice_3d(res)
                 res = np.vstack(res)
-                ncplus_samples = res.shape[0]
                 data_cpl.append(res)
-                print('{} new C+ PW samples'.format(ncplus_samples))
+                print('{} new C+ PW samples'.format(ncplus_injection_annulus))
 
             elif self.sample_type in ('mlar', 'tmlar', 'tmlar4d'):
                 print("Making new C+ MLAR samples:")
                 width = 1 * self.fwhm
                 distances = self.distances[i]
 
-                ncplus_samples = 0
                 for d in range(len(distances)):
                     inrad = distances[d] - int(np.ceil(width / 2.))
                     outrad = inrad + width
                     force_klen = True  # we enforce the same number of k slices
                     f = make_mlar_samples_ann_signal
                     res = f(self.cube[i], self.pa[i], self.psf[i],
-                            n_samp_annulus, self.cevr_thresh, self.n_ks,
+                            ncplus_injection_annulus, self.cevr_thresh, self.n_ks,
                             force_klen, inrad, outrad, self.patch_size_px,
                             self.flo[i][d], self.fhi[i][d], self.plsc,
                             self.normalization, self.n_proc, 1,
                             self.interpolation, self.lr_mode, self.sample_type,
                             self.kss_window, self.tss_window, self.random_seed)
                     data_cpl.append(res)
-                    ncplus_samples += res.shape[0]
-                    print('+', end='')
                 print('')
-                print('{} new C+ MLAR samples'.format(ncplus_samples))
+                print('{} new C+ MLAR samples'.format(ncplus_injection_samples))
 
             del res
             timing(starttime)
 
+            # More C+ samples by mean combinations of existing patches
+            ave_nsamples = int(fraction_averages * (nc_samples
+                                                    - ncplus_injection_samples))
+            print("{} C+ random averages".format(ave_nsamples))
+
+            # taking 2 lists of random negative samples
+            prev_cplus_samples = fileh.root.c_plus.shape[0]
+            ind_ave1 = random_state.randint(0, prev_cplus_samples, ave_nsamples)
+            ind_ave2 = random_state.randint(0, prev_cplus_samples, ave_nsamples)
+            new_pos_ave = np.mean((np.array(fileh.root.c_plus)[ind_ave1],
+                                   np.array(fileh.root.c_plus)[ind_ave2]),
+                                  axis=0)
+            data_cpl.append(new_pos_ave)
+            del new_pos_ave
+            timing(starttime)
+
+            # Random rotations (and shifts)
+            border_mode = 'reflect'
+            roshi_nsamples = nc_samples - (ave_nsamples
+                                           + ncplus_injection_samples)
+            msg = "{} C+ rotations/shifts (- every 1k):"
+            print(msg.format(roshi_nsamples))
+            if self.sample_type == 'pw2d':
+                new_rotshi_samples = np.empty((roshi_nsamples, dshape[1],
+                                               dshape[2]))
+            elif self.sample_type in ('pw3d', 'mlar', 'tmlar'):
+                new_rotshi_samples = np.empty((roshi_nsamples, dshape[1],
+                                               dshape[2], dshape[3]))
+            elif self.sample_type == 'tmlar4d':
+                new_rotshi_samples = np.empty((roshi_nsamples, dshape[1],
+                                               dshape[2], dshape[3], dshape[4]))
+
+            for j in range(roshi_nsamples):
+                pos_ang = random_state.uniform(0, 359, 1)
+                pos_ind = random_state.randint(0, half_initsamples, 1)[0]
+                trotshi = _rotations_and_shifts(fileh.root.c_plus[pos_ind],
+                                                pos_ang, samp_dim, border_mode,
+                                                shift_amplitude, self.imlib,
+                                                self.interpolation,
+                                                self.random_seed)
+                new_rotshi_samples[j] = trotshi
+                if j % 1000 == 0:
+                    print('+', end='')
+            print('')
+            data_cpl.append(new_rotshi_samples)
+            del new_rotshi_samples
+            timing(starttime)
+
             # ------------------------------------------------------------------
             # More C- samples by mean combinations of existing patches
-            ave_nsamples = int(ncplus_samples * fraction_averages)
+            ave_nsamples = int(nc_samples * fraction_averages)
             print("{} C- random averages".format(ave_nsamples))
 
             # taking 2 lists of random negative samples
@@ -547,7 +600,7 @@ class DataLabeler:
             # ------------------------------------------------------------------
             # Random rotations (and shifts)
             border_mode = 'reflect'
-            roshi_nsamples = int(ncplus_samples * fraction_rotshifts)
+            roshi_nsamples = int(nc_samples * fraction_rotshifts)
             msg = "{} C- rotations/shifts (- every 1k):"
             print(msg.format(roshi_nsamples))
             if self.sample_type == 'pw2d':
@@ -576,7 +629,7 @@ class DataLabeler:
             del new_rotshi_samples
             timing(starttime)
 
-        n_total_aug = ncplus_samples * 2 * self.n_cubes
+        n_total_aug = nc_samples * 2 * self.n_cubes
         n_total_samples = self.n_init_samples + n_total_aug
         self.n_total_samples = n_total_samples
         self.x_minus = np.array(fileh.root.c_minus, dtype='float32')
@@ -589,7 +642,7 @@ class DataLabeler:
         print('Total number of samples: {}'.format(self.n_total_samples))
 
         self.augmented = True
-        self.n_aug_inj = ncplus_samples * self.n_cubes
+        self.n_aug_inj = nc_samples * self.n_cubes
         self.n_aug_aver = ave_nsamples * self.n_cubes
         self.n_aug_rotshi = roshi_nsamples * self.n_cubes
 
@@ -978,16 +1031,17 @@ class DataLabeler:
                     _ = fh5.create_array('/', key, obj=attr, atom=f32atom)
 
                 elif isinstance(attr, list):
-                    if isinstance(attr[0], np.ndarray):
-                        if attr[0].dtype in ('float32', 'float64'):
-                            attr = np.array(attr, dtype='float32')
-                            _ = fh5.create_array('/', key, obj=attr,
-                                                 atom=f32atom)
-                        elif attr[0].dtype == 'int64':
-                            _ = fh5.create_array('/', key, obj=attr,
-                                                 atom=tables.Int64Atom())
-                    else:
-                        _ = fh5.create_array('/', key, obj=attr)
+                    if attr:
+                        if isinstance(attr[0], np.ndarray):
+                            if attr[0].dtype in ('float32', 'float64'):
+                                attr = np.array(attr, dtype='float32')
+                                _ = fh5.create_array('/', key, obj=attr,
+                                                     atom=f32atom)
+                            elif attr[0].dtype == 'int64':
+                                _ = fh5.create_array('/', key, obj=attr,
+                                                     atom=tables.Int64Atom())
+                        else:
+                            _ = fh5.create_array('/', key, obj=attr)
 
                 elif isinstance(attr, tuple):
                     if isinstance(attr[0], np.ndarray):
@@ -1083,7 +1137,6 @@ class DataLabeler:
         obj.x_plus = fh5r.x_plus.read()
         obj.y_minus = fh5r.y_minus.read()
         obj.y_plus = fh5r.y_plus.read()
-        obj.k_list = fh5r.k_list.read()
 
         fh5.close()
         return obj
