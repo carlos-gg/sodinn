@@ -627,6 +627,8 @@ class DataLabeler:
             print('')
             data_cmin.append(new_rotshi_samples)
             del new_rotshi_samples
+            labe_cmin.append(np.zeros(nc_samples))
+            labe_cpl.append(np.ones(nc_samples))
             timing(starttime)
 
         n_total_aug = nc_samples * 2 * self.n_cubes
