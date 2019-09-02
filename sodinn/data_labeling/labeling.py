@@ -1127,7 +1127,6 @@ class DataLabeler:
         obj.min_n_slices = fh5r.min_n_slices.read()
         obj.n_aug_aver = fh5r.n_aug_aver.read()
         obj.n_aug_inj = fh5r.n_aug_inj.read()
-        obj.n_aug_mupcu = fh5r.n_aug_mupcu.read()
         obj.n_aug_rotshi = fh5r.n_aug_rotshi.read()
         obj.n_cubes = fh5r.n_cubes.read()
         obj.n_init_samples = fh5r.n_init_samples.read()

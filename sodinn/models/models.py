@@ -113,7 +113,6 @@ class Model:
         self.n_aug_inj = labeled_data.n_aug_inj
         self.n_aug_aver = labeled_data.n_aug_aver
         self.n_aug_rotshi = labeled_data.n_aug_rotshi
-        self.n_aug_mupcu = labeled_data.n_aug_mupcu
         self.save_filename_labdata = labeled_data.save_filename_labdata
         self.labda_identifier = labeled_data.labda_identifier
 
