@@ -197,6 +197,8 @@ def make_mlar_samples_ann_noise(input_array, angle_list, cevr_thresh, n_ks,
     if frsize > outrad + outrad + patch_size + 2:
         frsize = int(outrad + outrad + patch_size + 2)
         cube = cube_crop_frames(input_array, frsize, force=True, verbose=False)
+    else:
+        cube = input_array
 
     # making zeros
     if verbose:
