@@ -7,13 +7,21 @@ try:  # pip >= 10
     from pip._internal.req import parse_requirements
 except ImportError:  # pip <= 9.0.3
     from pip.req import parse_requirements
-
+from setuptools.command.install import install
 
 def resource(*args):
     return os.path.join(os.path.abspath(os.path.join(__file__, os.pardir)),
                         *args)
 
-
+# Hackishly override of the install method
+class InstallReqs(install):
+    def run(self):
+        print(" ************************* ")
+        print(" *** Installing SODINN *** ")
+        print(" ************************* ")
+        os.system('pip install -r requirements.txt')
+        install.run(self)
+        
 # parse_requirements() returns generator of pip.req.InstallRequirement objects
 reqs = parse_requirements(resource('requirements.txt'), session=False)
 reqs = [str(ir.req) for ir in reqs]
@@ -41,6 +49,7 @@ setup(
     license='MIT',
     author_email='carlosgg33@gmail.com',
     url='https://github.com/carlgogo/sodinn',
+    cmdclass={'install': InstallReqs},    
     keywords=['deep-learning', 'exoplanets', 'detection', 'hci', 'package'],
     install_requires=reqs,
     classifiers=[
